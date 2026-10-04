@@ -1,0 +1,49 @@
+// Firebase Firestore Security Rules untuk PakeAja
+// Prinsip: user hanya bisa mengakses data miliknya sendiri (UID sama)
+
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Helper function: cek user sudah login
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    // Helper function: cek UID user sama dengan UID dokumen
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    // ==================== USERS ====================
+    match /users/{userId} {
+      // User hanya bisa baca/update data miliknya sendiri
+      allow read: if isOwner(userId);
+      allow create: if isOwner(userId);
+      allow update: if isOwner(userId);
+      allow delete: if isOwner(userId);
+
+      // ==================== CLOTHES (subcollection) ====================
+      match /clothes/{clothId} {
+        allow read: if isOwner(userId);
+        allow create: if isOwner(userId);
+        allow update: if isOwner(userId);
+        allow delete: if isOwner(userId);
+      }
+
+      // ==================== OUTFITS (subcollection) ====================
+      match /outfits/{outfitId} {
+        allow read: if isOwner(userId);
+        allow create: if isOwner(userId);
+        allow update: if isOwner(userId);
+        allow delete: if isOwner(userId);
+      }
+    }
+
+    // ==================== DENY ALL OTHERS ====================
+    // Semua path lain ditolak
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

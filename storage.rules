@@ -1,0 +1,41 @@
+// Firebase Storage Security Rules untuk PakeAja
+// Prinsip: user hanya bisa upload/read/hapus foto di folder miliknya
+
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    // Helper: cek user sudah login
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    // Helper: cek path milik user yang sedang login
+    // Path format: users/{uid}/clothes/{clothId}.jpg
+    function isOwnClothesPath(path) {
+      return isSignedIn() &&
+             path.matches('^users/' + request.auth.uid + '/clothes/.*$');
+    }
+
+    // ==================== CLOTHES IMAGES ====================
+    match /users/{userId}/clothes/{clothId}.jpg {
+      // User bisa baca foto miliknya sendiri
+      allow read: if isSignedIn() && request.auth.uid == userId;
+
+      // User bisa upload/update foto miliknya sendiri
+      // Batasi ukuran maksimal 5MB dan hanya format JPEG
+      allow write: if isSignedIn() &&
+                   request.auth.uid == userId &&
+                   request.resource.size < 5 * 1024 * 1024 &&
+                   request.resource.contentType == 'image/jpeg';
+
+      // User bisa hapus foto miliknya sendiri
+      allow delete: if isSignedIn() && request.auth.uid == userId;
+    }
+
+    // ==================== DENY ALL OTHERS ====================
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

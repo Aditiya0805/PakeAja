@@ -1,0 +1,26 @@
+# Flutter/Dart
+.dart_tool/
+.packages
+build/
+.flutter-plugins
+.flutter-plugins-dependencies
+
+# Firebase
+# Jangan commit file konfigurasi Firebase asli (opsional, tapi disarankan untuk .env/secret)
+# android/app/google-services.json
+# ios/Runner/GoogleService-Info.plist
+
+# IDE
+.idea/
+.vscode/
+*.iml
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Pub
+pubspec.lock  # opsional: commit untuk app, hapus untuk package
