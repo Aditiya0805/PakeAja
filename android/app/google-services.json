@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "548065215093",
+    "project_id": "pakeaja",
+    "storage_bucket": "pakeaja.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:548065215093:android:9fc44bb9b04d953c106e3c",
+        "android_client_info": {
+          "package_name": "com.example.pakeaja"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBbH1pmRa6P6G8I6VOPNZdgbtDiyfjvZ4o"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

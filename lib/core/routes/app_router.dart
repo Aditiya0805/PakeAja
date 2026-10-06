@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -6,17 +8,45 @@ import 'package:pakeaja/features/auth/presentation/screens/login_screen.dart';
 import 'package:pakeaja/features/auth/presentation/screens/register_screen.dart';
 import 'package:pakeaja/features/auth/presentation/screens/forgot_password_screen.dart';
 import 'package:pakeaja/features/auth/providers/auth_provider.dart';
+import 'package:pakeaja/core/providers/service_providers.dart';
 import 'package:pakeaja/features/main/presentation/screens/main_screen.dart';
 import 'package:pakeaja/features/wardrobe/presentation/screens/cloth_detail_screen.dart';
 import 'package:pakeaja/features/wardrobe/presentation/screens/add_cloth_screen.dart';
 import 'package:pakeaja/features/wardrobe/presentation/screens/edit_cloth_screen.dart';
 import 'package:pakeaja/features/recommendation/presentation/screens/recommendation_screen.dart';
 
+/// Listenable yang membungkus Stream agar GoRouter bisa refresh
+/// otomatis saat auth state berubah.
+class GoRouterRefreshStream extends ChangeNotifier {
+  GoRouterRefreshStream(Stream<dynamic> stream) {
+    notifyListeners();
+    _subscription = stream.asBroadcastStream().listen((_) => notifyListeners());
+  }
+
+  late final StreamSubscription<dynamic> _subscription;
+
+  @override
+  void dispose() {
+    _subscription.cancel();
+    super.dispose();
+  }
+}
+
 final routerProvider = Provider<GoRouter>((ref) {
+  final authService = ref.watch(authServiceProvider);
+
   final router = GoRouter(
     initialLocation: '/',
+    // Refresh router setiap kali auth state berubah
+    refreshListenable: GoRouterRefreshStream(authService.authStateChanges),
     redirect: (context, state) {
-      final user = ref.read(authStateProvider).value;
+      // Gunakan .value agar tidak trigger saat masih loading
+      final authValue = ref.read(authStateProvider);
+      
+      // Jika masih loading, jangan redirect dulu
+      if (authValue.isLoading) return null;
+
+      final user = authValue.value;
       final isLoggedIn = user != null;
       final isAuthRoute = state.matchedLocation == '/login' ||
           state.matchedLocation == '/register' ||
