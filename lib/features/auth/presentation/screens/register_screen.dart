@@ -44,7 +44,9 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final authState = ref.watch(authControllerProvider);
+    final isLoading =
+        ref.watch(authControllerProvider.select((s) => s.isLoading));
+    final authState = ref.read(authControllerProvider);
     final errorMessage = authErrorMessage(authState);
 
     return Scaffold(
@@ -140,8 +142,8 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
 
                 CustomButton(
                   text: 'Daftar',
-                  onPressed: authState.isLoading ? null : _register,
-                  isLoading: authState.isLoading,
+                  onPressed: isLoading ? null : _register,
+                  isLoading: isLoading,
                 ),
                 const SizedBox(height: 16),
 

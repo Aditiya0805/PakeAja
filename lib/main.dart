@@ -12,9 +12,18 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   // Inisialisasi Firebase
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
+  try {
+    if (Firebase.apps.isEmpty) {
+      await Firebase.initializeApp(
+        options: DefaultFirebaseOptions.currentPlatform,
+      );
+    }
+  } catch (e) {
+    // Tangani error duplicate-app saat hot restart
+    if (!e.toString().contains('duplicate-app')) {
+      rethrow;
+    }
+  }
 
   // Set status bar & navigation bar style
   SystemChrome.setSystemUIOverlayStyle(
@@ -43,15 +52,6 @@ class PakeAjaApp extends ConsumerWidget {
       debugShowCheckedModeBanner: false,
       theme: AppTheme.lightTheme,
       routerConfig: router,
-      builder: (context, child) {
-        // Scroll behavior untuk web/desktop
-        return ScrollConfiguration(
-          behavior: ScrollConfiguration.of(context).copyWith(
-            scrollbars: false,
-          ),
-          child: child!,
-        );
-      },
     );
   }
 }

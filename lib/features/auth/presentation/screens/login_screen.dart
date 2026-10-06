@@ -53,7 +53,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final authState = ref.watch(authControllerProvider);
+    final isLoading =
+        ref.watch(authControllerProvider.select((s) => s.isLoading));
+    final authState = ref.read(authControllerProvider);
     final errorMessage = authErrorMessage(authState);
 
     return Scaffold(
@@ -171,8 +173,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 // Login button
                 CustomButton(
                   text: 'Masuk',
-                  onPressed: authState.isLoading ? null : _login,
-                  isLoading: authState.isLoading,
+                  onPressed: isLoading ? null : _login,
+                  isLoading: isLoading,
                 ),
                 const SizedBox(height: 16),
 
