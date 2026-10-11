@@ -1,5 +1,6 @@
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+
+import 'package:pakeaja/core/widgets/cloth_image_view.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -57,33 +58,11 @@ class _ClothDetailScreenState extends ConsumerState<ClothDetailScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 // Foto
-                ClipRRect(
+                ClothImageView(
+                  imageUrl: cloth.imageUrl,
+                  height: 300,
+                  width: double.infinity,
                   borderRadius: BorderRadius.circular(16),
-                  child: cloth.imageUrl.isEmpty
-                      ? Container(
-                          height: 300,
-                          color: Colors.grey[200],
-                          child: const Icon(Icons.image,
-                              size: 64, color: Colors.grey),
-                        )
-                      : CachedNetworkImage(
-                          imageUrl: cloth.imageUrl,
-                          height: 300,
-                          width: double.infinity,
-                          fit: BoxFit.cover,
-                          placeholder: (c, u) => Container(
-                            height: 300,
-                            color: Colors.grey[200],
-                            child: const Center(
-                                child: CircularProgressIndicator()),
-                          ),
-                          errorWidget: (c, u, e) => Container(
-                            height: 300,
-                            color: Colors.grey[200],
-                            child:
-                                const Icon(Icons.broken_image, size: 64),
-                          ),
-                        ),
                 ),
                 const SizedBox(height: 20),
 

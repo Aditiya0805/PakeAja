@@ -1,5 +1,6 @@
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+
+import 'package:pakeaja/core/widgets/cloth_image_view.dart';
 
 import '../../../core/theme/app_theme.dart';
 import 'package:pakeaja/data/models/cloth_model.dart';
@@ -70,32 +71,10 @@ class ClothingCard extends StatelessWidget {
   }
 
   Widget _buildImage() {
-    final url = cloth.imageUrl;
-    if (url.isEmpty) {
-      return Container(
-        color: Colors.grey[200],
-        child: const Icon(Icons.image, color: Colors.grey),
-      );
-    }
-
-    return CachedNetworkImage(
-      imageUrl: url,
+    return ClothImageView(
+      imageUrl: cloth.imageUrl,
       fit: BoxFit.cover,
       width: double.infinity,
-      placeholder: (context, url) => Container(
-        color: Colors.grey[200],
-        child: const Center(
-          child: SizedBox(
-            width: 20,
-            height: 20,
-            child: CircularProgressIndicator(strokeWidth: 2),
-          ),
-        ),
-      ),
-      errorWidget: (context, url, error) => Container(
-        color: Colors.grey[200],
-        child: const Icon(Icons.broken_image, color: Colors.grey),
-      ),
     );
   }
 }

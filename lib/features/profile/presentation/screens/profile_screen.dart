@@ -4,8 +4,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:pakeaja/core/constants/app_constants.dart';
 import 'package:pakeaja/core/theme/app_theme.dart';
-import 'package:pakeaja/core/widgets/custom_button.dart';
-import 'package:pakeaja/core/widgets/state_widgets.dart';
 import 'package:pakeaja/features/auth/providers/auth_provider.dart';
 import 'package:pakeaja/features/outfits/providers/outfit_provider.dart';
 import 'package:pakeaja/features/profile/providers/profile_provider.dart';
@@ -144,38 +142,41 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   }
 
   Widget _buildMenu(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: AppTheme.surfaceColor,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppTheme.borderColor),
-      ),
-      child: Column(
-        children: [
-          _menuTile(
-            icon: Icons.edit_outlined,
-            title: 'Edit Profil',
-            onTap: () => _showEditProfileDialog(),
-          ),
-          const Divider(height: 1, indent: 56),
-          _menuTile(
-            icon: Icons.settings_outlined,
-            title: 'Pengaturan',
-            onTap: () => _showComingSoon('Pengaturan'),
-          ),
-          const Divider(height: 1, indent: 56),
-          _menuTile(
-            icon: Icons.info_outline,
-            title: 'Tentang PakeAja',
-            onTap: () => _showAboutDialog(),
-          ),
-          const Divider(height: 1, indent: 56),
-          _menuTile(
-            icon: Icons.privacy_tip_outlined,
-            title: 'Privacy Policy',
-            onTap: () => _showComingSoon('Privacy Policy'),
-          ),
-        ],
+    return Material(
+      color: AppTheme.surfaceColor,
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: AppTheme.borderColor),
+        ),
+        child: Column(
+          children: [
+            _menuTile(
+              icon: Icons.edit_outlined,
+              title: 'Edit Profil',
+              onTap: () => _showEditProfileDialog(),
+            ),
+            const Divider(height: 1, indent: 56),
+            _menuTile(
+              icon: Icons.settings_outlined,
+              title: 'Pengaturan',
+              onTap: () => _showComingSoon('Pengaturan'),
+            ),
+            const Divider(height: 1, indent: 56),
+            _menuTile(
+              icon: Icons.info_outline,
+              title: 'Tentang PakeAja',
+              onTap: () => _showAboutDialog(),
+            ),
+            const Divider(height: 1, indent: 56),
+            _menuTile(
+              icon: Icons.privacy_tip_outlined,
+              title: 'Privacy Policy',
+              onTap: () => _showComingSoon('Privacy Policy'),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -234,33 +235,40 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   }
 
   Widget _buildDangerZone(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppTheme.errorColor.withOpacity(0.3)),
-      ),
-      child: Column(
-        children: [
-          ListTile(
-            leading: const Icon(Icons.logout, color: AppTheme.errorColor),
-            title: const Text(
-              'Logout',
-              style: TextStyle(color: AppTheme.errorColor),
-            ),
-            onTap: () => _confirmLogout(),
+    return Material(
+      color: Colors.transparent,
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        width: double.infinity,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: AppTheme.errorColor.withOpacity(0.3)),
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(12),
+          child: Column(
+            children: [
+              ListTile(
+                leading: const Icon(Icons.logout, color: AppTheme.errorColor),
+                title: const Text(
+                  'Logout',
+                  style: TextStyle(color: AppTheme.errorColor),
+                ),
+                onTap: () => _confirmLogout(),
+              ),
+              const Divider(height: 1, indent: 56),
+              ListTile(
+                leading: const Icon(Icons.delete_forever,
+                    color: AppTheme.errorColor),
+                title: const Text(
+                  'Hapus Akun',
+                  style: TextStyle(color: AppTheme.errorColor),
+                ),
+                onTap: () => _confirmDeleteAccount(),
+              ),
+            ],
           ),
-          const Divider(height: 1, indent: 56),
-          ListTile(
-            leading: const Icon(Icons.delete_forever,
-                color: AppTheme.errorColor),
-            title: const Text(
-              'Hapus Akun',
-              style: TextStyle(color: AppTheme.errorColor),
-            ),
-            onTap: () => _confirmDeleteAccount(),
-          ),
-        ],
+        ),
       ),
     );
   }

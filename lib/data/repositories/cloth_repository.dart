@@ -1,7 +1,6 @@
-import 'dart:io';
+import 'dart:async';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_storage/firebase_storage.dart';
 
 import 'package:pakeaja/core/utils/error_handler.dart';
 import 'package:pakeaja/data/models/cloth_model.dart';
@@ -9,13 +8,9 @@ import 'package:pakeaja/data/models/outfit_model.dart';
 
 class ClothRepository {
   final FirebaseFirestore _db;
-  final FirebaseStorage _storage;
 
-  ClothRepository({
-    FirebaseFirestore? db,
-    FirebaseStorage? storage,
-  })  : _db = db ?? FirebaseFirestore.instance,
-        _storage = storage ?? FirebaseStorage.instance;
+  ClothRepository({FirebaseFirestore? db})
+      : _db = db ?? FirebaseFirestore.instance;
 
   CollectionReference _clothesRef(String uid) =>
       _db.collection('users').doc(uid).collection('clothes');
@@ -57,8 +52,16 @@ class ClothRepository {
     try {
       final docRef = _clothesRef(uid).doc();
       final withId = cloth.copyWith();
-      await docRef.set(withId.toFirestore());
-      return ClothModel.fromFirestore(await docRef.get());
+      await docRef.set(withId.toFirestore()).timeout(
+            const Duration(seconds: 15),
+            onTimeout: () => throw TimeoutException(
+                'Koneksi Firestore timeout. Pastikan Cloud Firestore sudah diaktifkan di Firebase Console.'),
+          );
+      final snapshot = await docRef.get().timeout(
+            const Duration(seconds: 10),
+            onTimeout: () => throw TimeoutException('Gagal mengambil data dari Firestore.'),
+          );
+      return ClothModel.fromFirestore(snapshot);
     } on Exception catch (e) {
       throw Exception(ErrorHandler.handle(e));
     }
@@ -99,37 +102,10 @@ class ClothRepository {
     }
   }
 
-  // ==================== STORAGE ====================
-  Future<String> uploadClothImage({
-    required String uid,
-    required String clothId,
-    required File image,
-  }) async {
-    try {
-      final ref = _storage.ref().child('users/$uid/clothes/$clothId.jpg');
-      final upload = await ref.putFile(
-        image,
-        SettableMetadata(contentType: 'image/jpeg'),
-      );
-      return await upload.ref.getDownloadURL();
-    } on Exception catch (e) {
-      throw Exception(ErrorHandler.handle(e));
-    }
-  }
-
-  Future<void> deleteClothImage(String imageUrl) async {
-    try {
-      // Ambil path dari URL
-      final decoded = Uri.decodeFull(imageUrl);
-      final start = decoded.indexOf('/o/');
-      if (start == -1) return;
-      final end = decoded.indexOf('?alt=media');
-      if (end == -1) return;
-      final path = decoded.substring(start + 3, end);
-      await _storage.ref().child(path).delete();
-    } on Exception catch (_) {
-      // Gagal hapus image tidak fatal
-    }
+  // Gambar disimpan langsung sebagai Base64 di dokumen Firestore,
+  // sehingga tidak membutuhkan operasi Storage terpisah.
+  Future<void> deleteClothImage(String? imageUrl) async {
+    // No-op: Data gambar otomatis terhapus bersama dokumen pakaian di Firestore.
   }
 }
 

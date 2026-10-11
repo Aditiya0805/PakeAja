@@ -5,7 +5,6 @@ import 'package:go_router/go_router.dart';
 
 import 'package:pakeaja/core/theme/app_theme.dart';
 import 'package:pakeaja/features/auth/providers/auth_provider.dart';
-import 'package:pakeaja/features/recommendation/providers/recommendation_provider.dart';
 import 'package:pakeaja/features/wardrobe/providers/wardrobe_provider.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
@@ -66,7 +65,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                             ),
                           ),
                           Text(
-                            'Halo, ${user?.name?.split(' ').first ?? 'User'}!',
+                            'Halo, ${user?.name.split(' ').first ?? 'User'}!',
                             style: const TextStyle(
                               fontSize: 20,
                               fontWeight: FontWeight.bold,

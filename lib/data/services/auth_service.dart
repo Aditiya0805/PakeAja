@@ -1,4 +1,5 @@
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
@@ -8,7 +9,7 @@ import '../../../core/utils/error_handler.dart';
 class AuthService {
   final FirebaseAuth _auth;
   final FirebaseFirestore _firestore;
-  final GoogleSignIn _googleSignIn;
+  GoogleSignIn? _googleSignIn;
 
   AuthService({
     FirebaseAuth? auth,
@@ -16,7 +17,13 @@ class AuthService {
     GoogleSignIn? googleSignIn,
   })  : _auth = auth ?? FirebaseAuth.instance,
         _firestore = firestore ?? FirebaseFirestore.instance,
-        _googleSignIn = googleSignIn ?? GoogleSignIn();
+        _googleSignIn = googleSignIn;
+
+  GoogleSignIn _getGoogleSignIn() {
+    return _googleSignIn ??= GoogleSignIn(
+      clientId: kIsWeb ? null : null,
+    );
+  }
 
   // Stream user saat ini
   Stream<User?> get authStateChanges => _auth.authStateChanges();
@@ -77,8 +84,13 @@ class AuthService {
 
   // ==================== GOOGLE SIGN-IN ====================
   Future<AuthResult> signInWithGoogle() async {
+    if (kIsWeb) {
+      return AuthResult.fail(
+        'Login Google belum didukung di versi web. Silakan daftar/login dengan email dan password, atau gunakan aplikasi Android.',
+      );
+    }
     try {
-      final googleUser = await _googleSignIn.signIn();
+      final googleUser = await _getGoogleSignIn().signIn();
       if (googleUser == null) {
         return AuthResult.fail('Login Google dibatalkan.');
       }
@@ -131,7 +143,9 @@ class AuthService {
   // ==================== LOGOUT ====================
   Future<AuthResult> logout() async {
     try {
-      await _googleSignIn.signOut();
+      if (!kIsWeb) {
+        await _getGoogleSignIn().signOut();
+      }
       await _auth.signOut();
       return AuthResult.ok(null);
     } on Exception catch (e) {

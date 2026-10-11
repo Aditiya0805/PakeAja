@@ -5,7 +5,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:pakeaja/core/providers/service_providers.dart';
 import 'package:pakeaja/data/models/user_model.dart';
-import 'package:pakeaja/data/repositories/user_repository.dart';
 import 'package:pakeaja/data/services/auth_service.dart';
 
 // ==================== AUTH STATE ====================

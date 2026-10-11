@@ -44,9 +44,8 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final isLoading =
-        ref.watch(authControllerProvider.select((s) => s.isLoading));
-    final authState = ref.read(authControllerProvider);
+    final authState = ref.watch(authControllerProvider);
+    final isLoading = authState.isLoading;
     final errorMessage = authErrorMessage(authState);
 
     return Scaffold(

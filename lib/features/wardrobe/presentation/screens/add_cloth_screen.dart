@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -21,6 +22,7 @@ class AddClothScreen extends ConsumerStatefulWidget {
 
 class _AddClothScreenState extends ConsumerState<AddClothScreen> {
   File? _image;
+  Uint8List? _imageBytes;
   String? _error;
 
   final _formKey = GlobalKey<FormState>();
@@ -45,9 +47,10 @@ class _AddClothScreenState extends ConsumerState<AddClothScreen> {
         ? await imageService.pickFromCamera()
         : await imageService.pickFromGallery();
 
-    if (result.image != null) {
+    if (result.bytes != null) {
       setState(() {
         _image = result.image;
+        _imageBytes = result.bytes;
         _error = null;
       });
       // Auto-focus ke nama
@@ -59,7 +62,7 @@ class _AddClothScreenState extends ConsumerState<AddClothScreen> {
 
   Future<void> _save() async {
     if (!_formKey.currentState!.validate()) return;
-    if (_image == null) {
+    if (_imageBytes == null) {
       setState(() => _error = 'Tambahkan foto pakaian terlebih dahulu.');
       return;
     }
@@ -81,7 +84,8 @@ class _AddClothScreenState extends ConsumerState<AddClothScreen> {
     final success = await ref.read(addClothProvider.notifier).addCloth(
           uid: user.uid,
           cloth: cloth,
-          image: _image!,
+          image: _image,
+          imageBytes: _imageBytes,
         );
 
     if (success && mounted) {
@@ -240,51 +244,104 @@ class _AddClothScreenState extends ConsumerState<AddClothScreen> {
   }
 
   Widget _buildImagePicker() {
-    if (_image != null) {
-      return GestureDetector(
-        onTap: () => _showImageSourceDialog(),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(12),
-          child: Image.file(
-            _image!,
-            height: 240,
-            width: double.infinity,
-            fit: BoxFit.cover,
+    if (_imageBytes != null) {
+      return Stack(
+        children: [
+          ClipRRect(
+            borderRadius: BorderRadius.circular(16),
+            child: Image.memory(
+              _imageBytes!,
+              height: 240,
+              width: double.infinity,
+              fit: BoxFit.cover,
+            ),
           ),
-        ),
+          Positioned(
+            top: 8,
+            right: 8,
+            child: Row(
+              children: [
+                IconButton.filledTonal(
+                  onPressed: _showImageSourceDialog,
+                  icon: const Icon(Icons.edit, size: 20),
+                  tooltip: 'Ganti Foto',
+                ),
+                const SizedBox(width: 8),
+                IconButton.filled(
+                  onPressed: () => setState(() {
+                    _image = null;
+                    _imageBytes = null;
+                  }),
+                  style: IconButton.styleFrom(
+                    backgroundColor: AppTheme.errorColor,
+                    foregroundColor: Colors.white,
+                  ),
+                  icon: const Icon(Icons.delete_outline, size: 20),
+                  tooltip: 'Hapus Foto',
+                ),
+              ],
+            ),
+          ),
+        ],
       );
     }
 
-    return GestureDetector(
-      onTap: _showImageSourceDialog,
-      child: Container(
-        height: 200,
-        width: double.infinity,
-        decoration: BoxDecoration(
-          color: Colors.grey[100],
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: AppTheme.borderColor),
-        ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.add_a_photo,
-                size: 48, color: AppTheme.textSecondary),
-            const SizedBox(height: 12),
-            const Text(
-              'Tambah Foto',
-              style: TextStyle(fontWeight: FontWeight.w600),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              'Kamera atau Galeri',
-              style: TextStyle(
-                fontSize: 12,
-                color: AppTheme.textSecondary,
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppTheme.surfaceColor,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppTheme.borderColor),
+      ),
+      child: Column(
+        children: [
+          const Icon(Icons.add_a_photo_outlined,
+              size: 44, color: AppTheme.primaryColor),
+          const SizedBox(height: 8),
+          const Text(
+            'Tambahkan Foto Pakaian',
+            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+          ),
+          const SizedBox(height: 4),
+          const Text(
+            'Ambil langsung dengan kamera atau pilih dari galeri',
+            style: TextStyle(fontSize: 12, color: AppTheme.textSecondary),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: () => _pickImage(true),
+                  icon: const Icon(Icons.camera_alt_outlined),
+                  label: const Text('Kamera'),
+                  style: OutlinedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
+                ),
               ),
-            ),
-          ],
-        ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: FilledButton.icon(
+                  onPressed: () => _pickImage(false),
+                  icon: const Icon(Icons.photo_library_outlined),
+                  label: const Text('Galeri'),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: AppTheme.primaryColor,
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }

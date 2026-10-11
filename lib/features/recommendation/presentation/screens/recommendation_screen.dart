@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:pakeaja/core/theme/app_theme.dart';
+import 'package:pakeaja/core/widgets/cloth_image_view.dart';
 import 'package:pakeaja/core/widgets/custom_button.dart';
 import 'package:pakeaja/core/widgets/outfit_card.dart';
 import 'package:pakeaja/core/widgets/state_widgets.dart';
@@ -139,30 +140,13 @@ class _RecommendationScreenState extends ConsumerState<RecommendationScreen> {
   }
 
   Widget _buildOutfitItem(ClothModel item) {
-    final imageUrl = item.imageUrl ?? '';
     return Row(
       children: [
-        ClipRRect(
+        ClothImageView(
+          imageUrl: item.imageUrl,
+          width: 56,
+          height: 56,
           borderRadius: BorderRadius.circular(8),
-          child: imageUrl.isEmpty
-              ? Container(
-                  width: 56,
-                  height: 56,
-                  color: Colors.grey[200],
-                  child: const Icon(Icons.image, color: Colors.grey),
-                )
-              : Image.network(
-                  imageUrl,
-                  width: 56,
-                  height: 56,
-                  fit: BoxFit.cover,
-                  errorBuilder: (c, u, e) => Container(
-                    width: 56,
-                    height: 56,
-                    color: Colors.grey[200],
-                    child: const Icon(Icons.broken_image),
-                  ),
-                ),
         ),
         const SizedBox(width: 12),
         Expanded(

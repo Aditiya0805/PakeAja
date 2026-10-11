@@ -1,5 +1,6 @@
+import 'dart:convert';
 import 'dart:io';
-
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_image_compress/flutter_image_compress.dart';
 import 'package:image_cropper/image_cropper.dart';
@@ -10,17 +11,19 @@ import '../../core/utils/error_handler.dart';
 
 class ImagePickerResult {
   final File? image;
+  final Uint8List? bytes;
   final String? error;
   final bool cancelled;
 
   const ImagePickerResult._({
     this.image,
+    this.bytes,
     this.error,
     this.cancelled = false,
   });
 
-  factory ImagePickerResult.ok(File image) =>
-      ImagePickerResult._(image: image);
+  factory ImagePickerResult.ok({File? image, required Uint8List bytes}) =>
+      ImagePickerResult._(image: image, bytes: bytes);
 
   factory ImagePickerResult.fail(String error) =>
       ImagePickerResult._(error: error);
@@ -35,64 +38,75 @@ class ImageService {
   ImageService({ImagePicker? picker}) : _picker = picker ?? ImagePicker();
 
   Future<ImagePickerResult> pickFromCamera() async {
-    // Minta permission kamera
-    final status = await Permission.camera.request();
-    if (!status.isGranted) {
-      return ImagePickerResult.fail(
-          'Izin kamera ditolak. Aktifkan di pengaturan.');
-    }
-
     try {
+      if (!kIsWeb && !Platform.isMacOS && !Platform.isWindows && !Platform.isLinux) {
+        final status = await Permission.camera.request();
+        if (status.isPermanentlyDenied) {
+          return ImagePickerResult.fail(
+              'Izin kamera ditolak permanen. Buka pengaturan untuk mengaktifkan.');
+        }
+      }
+
       final xFile = await _picker.pickImage(
         source: ImageSource.camera,
         maxWidth: 1080,
-        imageQuality: 90,
+        imageQuality: 85,
       );
       if (xFile == null) return ImagePickerResult.cancelled();
 
-      final cropped = await _crop(File(xFile.path));
-      if (cropped == null) return ImagePickerResult.cancelled();
+      // Di Web, baca bytes langsung
+      if (kIsWeb) {
+        final bytes = await xFile.readAsBytes();
+        return ImagePickerResult.ok(bytes: bytes);
+      }
 
-      return ImagePickerResult.ok(cropped);
+      final originalFile = File(xFile.path);
+      final cropped = await _crop(originalFile);
+      final finalFile = cropped ?? originalFile;
+      final bytes = await finalFile.readAsBytes();
+
+      return ImagePickerResult.ok(image: finalFile, bytes: bytes);
     } on Exception catch (e) {
       return ImagePickerResult.fail(ErrorHandler.handle(e));
     }
   }
 
   Future<ImagePickerResult> pickFromGallery() async {
-    // Minta permission galeri
-    final status = await Permission.photos.request();
-    if (!status.isGranted) {
-      return ImagePickerResult.fail(
-          'Izin galeri ditolak. Aktifkan di pengaturan.');
-    }
-
     try {
       final xFile = await _picker.pickImage(
         source: ImageSource.gallery,
         maxWidth: 1080,
-        imageQuality: 90,
+        imageQuality: 85,
       );
       if (xFile == null) return ImagePickerResult.cancelled();
 
-      final cropped = await _crop(File(xFile.path));
-      if (cropped == null) return ImagePickerResult.cancelled();
+      // Di Web, baca bytes langsung
+      if (kIsWeb) {
+        final bytes = await xFile.readAsBytes();
+        return ImagePickerResult.ok(bytes: bytes);
+      }
 
-      return ImagePickerResult.ok(cropped);
+      final originalFile = File(xFile.path);
+      final cropped = await _crop(originalFile);
+      final finalFile = cropped ?? originalFile;
+      final bytes = await finalFile.readAsBytes();
+
+      return ImagePickerResult.ok(image: finalFile, bytes: bytes);
     } on Exception catch (e) {
       return ImagePickerResult.fail(ErrorHandler.handle(e));
     }
   }
 
   Future<File?> _crop(File image) async {
+    if (kIsWeb) return null;
     try {
       final cropped = await ImageCropper().cropImage(
         sourcePath: image.path,
         compressFormat: ImageCompressFormat.jpg,
-        compressQuality: 90,
+        compressQuality: 85,
         uiSettings: [
           AndroidUiSettings(
-            toolbarTitle: 'Crop Foto',
+            toolbarTitle: 'Potong / Sesuaikan Foto',
             toolbarColor: const Color(0xFF6B5B95),
             toolbarWidgetColor: Colors.white,
             initAspectRatio: CropAspectRatioPreset.square,
@@ -104,73 +118,79 @@ class ImageService {
             ],
           ),
           IOSUiSettings(
-            title: 'Crop Foto',
+            title: 'Potong Foto',
           ),
         ],
       );
       if (cropped == null) return null;
       return File(cropped.path);
-    } on Exception catch (_) {
-      return image; // fallback: pakai asli
+    } catch (_) {
+      return null;
     }
   }
 
-  /// Kompres gambar, target <= 1MB
+  /// Kompres gambar jika di mobile
   Future<File> compressImage(File image) async {
+    if (kIsWeb) return image;
     try {
       final dir = Directory.systemTemp;
-      var quality = 85;
-      var minSize = 1080;
+      final target =
+          '${dir.path}/compressed_${DateTime.now().millisecondsSinceEpoch}.jpg';
+      final compressed = await FlutterImageCompress.compressAndGetFile(
+        image.absolute.path,
+        target,
+        quality: 70,
+        minWidth: 480,
+        minHeight: 480,
+      );
 
-      File? result;
-      while (result == null && quality > 30) {
-        final target =
-            '${dir.path}/compressed_${DateTime.now().millisecondsSinceEpoch}_$quality.jpg';
-        final compressed = await FlutterImageCompress.compressAndGetFile(
-          image.absolute.path,
-          target,
-          quality: quality,
-          minWidth: minSize,
-          minHeight: minSize,
-        );
-        if (compressed != null) {
-          final file = File(compressed.path);
-          // Kalau masih > 1MB, kompres lagi lebih agresif
-          if (await file.length() > 1024 * 1024) {
-            quality -= 15;
-            minSize = minSize > 700 ? minSize - 100 : minSize;
-            result = null; // coba lagi
-          } else {
-            result = file;
-          }
-        } else {
-          quality -= 15;
-        }
+      if (compressed != null) {
+        return File(compressed.path);
       }
-
-      return result ?? image;
-    } on Exception catch (_) {
+      return image;
+    } catch (_) {
       return image;
     }
   }
 
-  /// Buat thumbnail kecil untuk grid
-  Future<File?> createThumbnail(File image) async {
+  /// Kompresi byte gambar dan ubah menjadi String Base64 ringan untuk disimpan langsung ke Firestore.
+  Future<String> compressAndConvertToBase64({File? image, Uint8List? bytes}) async {
     try {
-      final dir = Directory.systemTemp;
-      final target =
-          '${dir.path}/thumb_${DateTime.now().millisecondsSinceEpoch}.jpg';
-      final compressed = await FlutterImageCompress.compressAndGetFile(
-        image.absolute.path,
-        target,
-        quality: 60,
-        minWidth: 300,
-        minHeight: 300,
-      );
-      if (compressed == null) return null;
-      return File(compressed.path);
-    } on Exception catch (_) {
-      return null;
+      Uint8List targetBytes;
+      if (bytes != null) {
+        targetBytes = bytes;
+      } else if (image != null) {
+        targetBytes = await image.readAsBytes();
+      } else {
+        return '';
+      }
+
+      // Jika mobile dan FlutterImageCompress tersedia, kompres ukuran byte
+      if (!kIsWeb) {
+        try {
+          final compressedBytes = await FlutterImageCompress.compressWithList(
+            targetBytes,
+            minWidth: 480,
+            minHeight: 480,
+            quality: 70,
+            format: CompressFormat.jpeg,
+          );
+          if (compressedBytes.isNotEmpty) {
+            targetBytes = compressedBytes;
+          }
+        } catch (_) {
+          // Fallback ke targetBytes awal jika kompresi gagal
+        }
+      }
+
+      // Ubah ke string base64 dengan data prefix
+      final base64String = base64Encode(targetBytes);
+      return 'data:image/jpeg;base64,$base64String';
+    } catch (_) {
+      if (bytes != null) {
+        return 'data:image/jpeg;base64,${base64Encode(bytes)}';
+      }
+      return '';
     }
   }
 }

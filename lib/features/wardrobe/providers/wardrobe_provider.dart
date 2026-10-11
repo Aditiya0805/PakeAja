@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -107,32 +108,36 @@ class AddClothNotifier extends StateNotifier<AddClothState> {
   Future<bool> addCloth({
     required String uid,
     required ClothModel cloth,
-    required File image,
+    File? image,
+    Uint8List? imageBytes,
   }) async {
     state = state.copyWith(isLoading: true, error: null);
     try {
       final repo = _ref.read(clothRepositoryProvider);
       final imageService = _ref.read(imageServiceProvider);
 
-      // 1. Compress
-      final compressed = await imageService.compressImage(image);
+      Uint8List? uploadBytes = imageBytes;
+      if (uploadBytes == null && image != null) {
+        final compressed = await imageService.compressImage(image);
+        uploadBytes = await compressed.readAsBytes();
+      }
 
-      // 2. Simpan metadata dulu untuk dapat clothId
-      final saved = await repo.addCloth(uid: uid, cloth: cloth);
+      if (uploadBytes == null) {
+        throw Exception('Data gambar tidak ditemukan');
+      }
 
-      // 3. Upload image
-      final imageUrl = await repo.uploadClothImage(
-        uid: uid,
-        clothId: saved.id,
-        image: compressed,
+      // 1. Ubah gambar ke string Base64 yang sudah dikompresi
+      final base64Image = await imageService.compressAndConvertToBase64(
+        image: image,
+        bytes: imageBytes,
       );
 
-      // 4. Update URL di Firestore
-      await repo.updateCloth(
-        uid: uid,
-        clothId: saved.id,
-        data: {'imageUrl': imageUrl},
+      final clothWithImage = cloth.copyWith(
+        imageUrl: base64Image,
       );
+
+      // 2. Simpan langsung ke Firestore (tanpa Firebase Storage!)
+      await repo.addCloth(uid: uid, cloth: clothWithImage);
 
       state = const AddClothState(success: true);
       return true;

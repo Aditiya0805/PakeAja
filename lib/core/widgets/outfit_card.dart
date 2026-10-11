@@ -1,9 +1,8 @@
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 
+import 'package:pakeaja/core/widgets/cloth_image_view.dart';
 import '../../../core/theme/app_theme.dart';
 import 'package:pakeaja/data/models/cloth_model.dart';
-import 'package:pakeaja/data/models/outfit_model.dart';
 
 /// Menampilkan outfit: daftar item (foto) secara vertikal dengan "+"
 class OutfitCard extends StatelessWidget {
@@ -123,32 +122,11 @@ class OutfitCard extends StatelessWidget {
     return Row(
       children: [
         // Thumbnail
-        ClipRRect(
+        ClothImageView(
+          imageUrl: cloth.imageUrl,
+          width: 44,
+          height: 44,
           borderRadius: BorderRadius.circular(6),
-          child: cloth.imageUrl.isEmpty
-              ? Container(
-                  width: 44,
-                  height: 44,
-                  color: Colors.grey[200],
-                  child: const Icon(Icons.image, size: 20, color: Colors.grey),
-                )
-              : CachedNetworkImage(
-                  imageUrl: cloth.imageUrl,
-                  width: 44,
-                  height: 44,
-                  fit: BoxFit.cover,
-                  placeholder: (c, u) => Container(
-                    width: 44,
-                    height: 44,
-                    color: Colors.grey[200],
-                  ),
-                  errorWidget: (c, u, e) => Container(
-                    width: 44,
-                    height: 44,
-                    color: Colors.grey[200],
-                    child: const Icon(Icons.broken_image, size: 18),
-                  ),
-                ),
         ),
         const SizedBox(width: 10),
         Expanded(

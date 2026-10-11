@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import 'package:pakeaja/features/auth/presentation/screens/splash_screen.dart';
 import 'package:pakeaja/features/auth/presentation/screens/login_screen.dart';
 import 'package:pakeaja/features/auth/presentation/screens/register_screen.dart';
 import 'package:pakeaja/features/auth/presentation/screens/forgot_password_screen.dart';
@@ -36,31 +37,41 @@ final routerProvider = Provider<GoRouter>((ref) {
   final authService = ref.watch(authServiceProvider);
 
   final router = GoRouter(
-    initialLocation: '/',
+    initialLocation: '/splash',
     // Refresh router setiap kali auth state berubah
     refreshListenable: GoRouterRefreshStream(authService.authStateChanges),
     redirect: (context, state) {
-      // Gunakan .value agar tidak trigger saat masih loading
-      final authValue = ref.read(authStateProvider);
-      
-      // Jika masih loading, jangan redirect dulu
-      if (authValue.isLoading) return null;
+      final loc = state.matchedLocation;
 
-      final user = authValue.value;
+      // Beri izin splash screen berjalan tanpa interupsi
+      if (loc == '/splash') return null;
+
+      final user = ref.read(authStateProvider).value ?? authService.currentUser;
       final isLoggedIn = user != null;
-      final isAuthRoute = state.matchedLocation == '/login' ||
-          state.matchedLocation == '/register' ||
-          state.matchedLocation == '/forgot-password';
+      final isAuthRoute = loc == '/login' ||
+          loc == '/register' ||
+          loc == '/forgot-password';
 
+      // Jika belum login dan bukan di halaman auth, wajib diarahkan ke login
       if (!isLoggedIn && !isAuthRoute) {
         return '/login';
       }
+
+      // Jika sudah login tapi berada di halaman auth, arahkan ke beranda utama
       if (isLoggedIn && isAuthRoute) {
         return '/';
       }
+
       return null;
     },
     routes: [
+      // Splash
+      GoRoute(
+        path: '/splash',
+        name: 'splash',
+        builder: (context, state) => const SplashScreen(),
+      ),
+
       // Auth
       GoRoute(
         path: '/login',

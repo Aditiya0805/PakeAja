@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
@@ -17,11 +18,20 @@ class ErrorHandler {
   static String handle(dynamic error) {
     if (error is AppException) return error.message;
 
+    final msg = error?.toString() ?? '';
+    if (msg.contains('firestore.googleapis.com') ||
+        (msg.contains('PERMISSION_DENIED') && msg.contains('Cloud Firestore API'))) {
+      return 'Cloud Firestore API belum diaktifkan di Firebase Console. Silakan aktifkan Firestore Database di Firebase Console.';
+    }
+
+    if (error is TimeoutException || msg.contains('timeout') || msg.contains('TimeoutException')) {
+      return 'Koneksi ke Firebase timeout. Periksa internet atau pastikan Firestore Database sudah dibuat di Firebase Console.';
+    }
+
     if (error is FirebaseAuthException) return _handleAuthError(error);
     if (error is FirebaseException) return _handleFirebaseError(error);
 
     // Network / connection errors
-    final msg = error?.toString() ?? '';
     if (msg.contains('network') ||
         msg.contains('connection') ||
         msg.contains('SocketException') ||
