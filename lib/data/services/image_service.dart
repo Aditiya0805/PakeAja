@@ -49,8 +49,9 @@ class ImageService {
 
       final xFile = await _picker.pickImage(
         source: ImageSource.camera,
-        maxWidth: 1080,
-        imageQuality: 85,
+        maxWidth: 720,
+        maxHeight: 720,
+        imageQuality: 70,
       );
       if (xFile == null) return ImagePickerResult.cancelled();
 
@@ -75,8 +76,9 @@ class ImageService {
     try {
       final xFile = await _picker.pickImage(
         source: ImageSource.gallery,
-        maxWidth: 1080,
-        imageQuality: 85,
+        maxWidth: 720,
+        maxHeight: 720,
+        imageQuality: 70,
       );
       if (xFile == null) return ImagePickerResult.cancelled();
 

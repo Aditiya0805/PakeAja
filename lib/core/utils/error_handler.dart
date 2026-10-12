@@ -39,6 +39,11 @@ class ErrorHandler {
       return 'Koneksi internet tidak tersedia. Periksa jaringan kamu.';
     }
 
+    if (msg.startsWith('Exception: ')) {
+      final clean = msg.substring(11).trim();
+      if (clean.isNotEmpty) return clean;
+    }
+
     if (kDebugMode) {
       debugPrint('Unhandled error: $error');
     }

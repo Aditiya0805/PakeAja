@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:pakeaja/core/constants/app_constants.dart';
 import 'package:pakeaja/core/providers/service_providers.dart';
 import 'package:pakeaja/core/theme/app_theme.dart';
+import 'package:pakeaja/core/widgets/cloth_image_view.dart';
 import 'package:pakeaja/core/widgets/custom_button.dart';
 import 'package:pakeaja/core/widgets/state_widgets.dart';
 import 'package:pakeaja/data/models/cloth_model.dart';
@@ -29,6 +30,7 @@ class _EditClothScreenState extends ConsumerState<EditClothScreen> {
   ClothStyle _style = ClothStyle.casual;
   ClothWeather _weather = ClothWeather.cool;
 
+  String? _newBase64Image;
   ClothModel? _cloth;
   bool _loading = true;
 
@@ -53,7 +55,7 @@ class _EditClothScreenState extends ConsumerState<EditClothScreen> {
         _nameController.text = cloth.name;
         _category = cloth.category;
         _color = cloth.color;
-        _style = cloth.styles.first;
+        _style = cloth.styles.isNotEmpty ? cloth.styles.first : ClothStyle.casual;
         _weather = cloth.weather;
         _loading = false;
       });
@@ -62,18 +64,77 @@ class _EditClothScreenState extends ConsumerState<EditClothScreen> {
     }
   }
 
+  Future<void> _pickNewImage(bool fromCamera) async {
+    final imageService = ref.read(imageServiceProvider);
+    final result = fromCamera
+        ? await imageService.pickFromCamera()
+        : await imageService.pickFromGallery();
+
+    if (result.bytes != null || result.image != null) {
+      final base64String = await imageService.compressAndConvertToBase64(
+        image: result.image,
+        bytes: result.bytes,
+      );
+      if (mounted && base64String.isNotEmpty) {
+        setState(() {
+          _newBase64Image = base64String;
+        });
+      }
+    } else if (result.error != null && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(result.error!),
+          backgroundColor: AppTheme.errorColor,
+        ),
+      );
+    }
+  }
+
+  void _showImagePickerOptions() {
+    showModalBottomSheet(
+      context: context,
+      builder: (context) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.camera_alt_outlined),
+              title: const Text('Ambil dari Kamera'),
+              onTap: () {
+                context.pop();
+                _pickNewImage(true);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.photo_library_outlined),
+              title: const Text('Pilih dari Galeri'),
+              onTap: () {
+                context.pop();
+                _pickNewImage(false);
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Future<void> _save() async {
     if (!_formKey.currentState!.validate()) return;
     final user = ref.read(authStateProvider).value;
     if (user == null) return;
 
-    final data = {
+    final data = <String, dynamic>{
       'name': _nameController.text.trim(),
       'category': _category.value,
       'color': _color,
       'styles': [_style.value],
       'weather': _weather.value,
     };
+
+    if (_newBase64Image != null) {
+      data['imageUrl'] = _newBase64Image;
+    }
 
     final success = await ref.read(updateClothProvider.notifier).updateCloth(
           uid: user.uid,
@@ -89,7 +150,95 @@ class _EditClothScreenState extends ConsumerState<EditClothScreen> {
         ),
       );
       context.pop();
+    } else if (mounted) {
+      final err = ref.read(updateClothProvider).error?.toString() ??
+          'Gagal memperbarui pakaian.';
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Gagal menyimpan: $err'),
+          backgroundColor: AppTheme.errorColor,
+        ),
+      );
     }
+  }
+
+  void _confirmDelete() {
+    if (_cloth == null) return;
+    showDialog(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Hapus Pakaian'),
+        content: Text('Yakin hapus "${_cloth!.name}"? Tindakan tidak dapat dibatalkan.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: const Text('Batal'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: AppTheme.errorColor),
+            onPressed: () async {
+              Navigator.of(dialogContext).pop();
+              final user = ref.read(authStateProvider).value;
+              if (user == null) return;
+
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Row(
+                      children: [
+                        const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Text('Menghapus "${_cloth!.name}"...'),
+                      ],
+                    ),
+                    duration: const Duration(seconds: 2),
+                  ),
+                );
+              }
+
+              final success = await ref
+                  .read(deleteClothProvider.notifier)
+                  .deleteCloth(
+                    uid: user.uid,
+                    clothId: _cloth!.id,
+                    imageUrl: _cloth!.imageUrl,
+                  );
+
+              if (!mounted) return;
+              ScaffoldMessenger.of(context).hideCurrentSnackBar();
+
+              if (success) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Pakaian berhasil dihapus.'),
+                    backgroundColor: AppTheme.successColor,
+                  ),
+                );
+                // Pop back to wardrobe
+                context.pop();
+              } else {
+                final err = ref.read(deleteClothProvider).error?.toString() ??
+                    'Gagal menghapus pakaian.';
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('Gagal menghapus: $err'),
+                    backgroundColor: AppTheme.errorColor,
+                  ),
+                );
+              }
+            },
+            child: const Text('Hapus'),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -111,9 +260,19 @@ class _EditClothScreenState extends ConsumerState<EditClothScreen> {
     }
 
     final updateState = ref.watch(updateClothProvider);
+    final currentImage = _newBase64Image ?? _cloth!.imageUrl;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Edit Pakaian')),
+      appBar: AppBar(
+        title: const Text('Edit Pakaian'),
+        actions: [
+          IconButton(
+            onPressed: _confirmDelete,
+            icon: const Icon(Icons.delete_outline, color: AppTheme.errorColor),
+            tooltip: 'Hapus Pakaian',
+          ),
+        ],
+      ),
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(20),
@@ -122,17 +281,32 @@ class _EditClothScreenState extends ConsumerState<EditClothScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Preview foto lama
-                if (_cloth!.imageUrl.isNotEmpty)
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(12),
-                    child: Image.network(
-                      _cloth!.imageUrl,
+                // Preview foto
+                Stack(
+                  children: [
+                    ClothImageView(
+                      imageUrl: currentImage,
                       height: 200,
                       width: double.infinity,
                       fit: BoxFit.cover,
+                      borderRadius: BorderRadius.circular(12),
                     ),
-                  ),
+                    Positioned(
+                      bottom: 8,
+                      right: 8,
+                      child: FilledButton.tonalIcon(
+                        onPressed: _showImagePickerOptions,
+                        icon: const Icon(Icons.camera_alt, size: 16),
+                        label: const Text('Ganti Foto', style: TextStyle(fontSize: 12)),
+                        style: FilledButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          backgroundColor: Colors.black.withOpacity(0.6),
+                          foregroundColor: Colors.white,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
                 const SizedBox(height: 16),
 
                 // Nama
@@ -221,6 +395,14 @@ class _EditClothScreenState extends ConsumerState<EditClothScreen> {
                   onPressed: updateState.isLoading ? null : _save,
                   isLoading: updateState.isLoading,
                   icon: Icons.check,
+                ),
+                const SizedBox(height: 12),
+
+                CustomButton(
+                  text: 'Hapus Pakaian',
+                  onPressed: _confirmDelete,
+                  variant: ButtonVariant.danger,
+                  icon: Icons.delete_outline,
                 ),
               ],
             ),

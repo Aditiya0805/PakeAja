@@ -9,6 +9,7 @@ import 'package:pakeaja/core/theme/app_theme.dart';
 import 'package:pakeaja/core/utils/date_formatter.dart';
 import 'package:pakeaja/core/widgets/custom_button.dart';
 import 'package:pakeaja/core/widgets/state_widgets.dart';
+import 'package:pakeaja/data/models/cloth_model.dart';
 import 'package:pakeaja/features/auth/providers/auth_provider.dart' show authStateProvider;
 import 'package:pakeaja/features/wardrobe/providers/wardrobe_provider.dart';
 
@@ -22,6 +23,8 @@ class ClothDetailScreen extends ConsumerStatefulWidget {
 }
 
 class _ClothDetailScreenState extends ConsumerState<ClothDetailScreen> {
+  ClothModel? _currentCloth;
+
   @override
   Widget build(BuildContext context) {
     final user = ref.watch(authStateProvider).value;
@@ -34,10 +37,20 @@ class _ClothDetailScreenState extends ConsumerState<ClothDetailScreen> {
           IconButton(
             onPressed: () => context.push('/cloth/${widget.clothId}/edit'),
             icon: const Icon(Icons.edit_outlined),
+            tooltip: 'Edit Pakaian',
+          ),
+          IconButton(
+            onPressed: () {
+              if (_currentCloth != null) {
+                _confirmDelete(_currentCloth!);
+              }
+            },
+            icon: const Icon(Icons.delete_outline, color: AppTheme.errorColor),
+            tooltip: 'Hapus Pakaian',
           ),
         ],
       ),
-      body: StreamBuilder(
+      body: StreamBuilder<ClothModel?>(
         stream: ref
             .read(clothRepositoryProvider)
             .watchCloth(user.uid, widget.clothId),
@@ -52,6 +65,7 @@ class _ClothDetailScreenState extends ConsumerState<ClothDetailScreen> {
           }
 
           final cloth = snapshot.data!;
+          _currentCloth = cloth;
           return SingleChildScrollView(
             padding: const EdgeInsets.all(20),
             child: Column(
@@ -221,23 +235,45 @@ class _ClothDetailScreenState extends ConsumerState<ClothDetailScreen> {
     );
   }
 
-  void _confirmDelete(cloth) {
+  void _confirmDelete(ClothModel cloth) {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (dialogContext) => AlertDialog(
         title: const Text('Hapus Pakaian'),
         content: Text(
             'Yakin hapus "${cloth.name}"? Tindakan tidak dapat dibatalkan.'),
         actions: [
           TextButton(
-            onPressed: () => context.pop(),
+            onPressed: () => Navigator.of(dialogContext).pop(),
             child: const Text('Batal'),
           ),
           FilledButton(
             onPressed: () async {
-              context.pop();
+              Navigator.of(dialogContext).pop();
               final user = ref.read(authStateProvider).value;
               if (user == null) return;
+
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Row(
+                      children: [
+                        const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Text('Menghapus "${cloth.name}"...'),
+                      ],
+                    ),
+                    duration: const Duration(seconds: 2),
+                  ),
+                );
+              }
 
               final success = await ref
                   .read(deleteClothProvider.notifier)
@@ -246,11 +282,27 @@ class _ClothDetailScreenState extends ConsumerState<ClothDetailScreen> {
                     clothId: cloth.id,
                     imageUrl: cloth.imageUrl,
                   );
-              if (success && mounted) {
+
+              if (!mounted) return;
+              ScaffoldMessenger.of(context).hideCurrentSnackBar();
+
+              if (success) {
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Pakaian berhasil dihapus.')),
+                  const SnackBar(
+                    content: Text('Pakaian berhasil dihapus.'),
+                    backgroundColor: AppTheme.successColor,
+                  ),
                 );
-                if (mounted) context.pop();
+                context.pop();
+              } else {
+                final err = ref.read(deleteClothProvider).error?.toString() ??
+                    'Gagal menghapus pakaian.';
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('Gagal menghapus: $err'),
+                    backgroundColor: AppTheme.errorColor,
+                  ),
+                );
               }
             },
             style: FilledButton.styleFrom(

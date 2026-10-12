@@ -20,9 +20,9 @@ class ClothRepository {
     return _clothesRef(uid)
         .orderBy('createdAt', descending: true)
         .snapshots()
-        .handleError((e) => throw Exception(ErrorHandler.handle(e)))
         .map((snapshot) =>
-            snapshot.docs.map((doc) => ClothModel.fromFirestore(doc)).toList());
+            snapshot.docs.map((doc) => ClothModel.fromFirestore(doc)).toList())
+        .handleError((e) => throw AppException(ErrorHandler.handle(e)));
   }
 
   // Pagination
@@ -36,12 +36,14 @@ class ClothRepository {
     return query
         .limit(limit)
         .snapshots()
-        .map((s) => s.docs.map((d) => ClothModel.fromFirestore(d)).toList());
+        .map((s) => s.docs.map((d) => ClothModel.fromFirestore(d)).toList())
+        .handleError((e) => throw AppException(ErrorHandler.handle(e)));
   }
 
   Stream<ClothModel?> watchCloth(String uid, String clothId) {
     return _clothesRef(uid).doc(clothId).snapshots().map((doc) =>
-        doc.exists ? ClothModel.fromFirestore(doc) : null);
+        doc.exists ? ClothModel.fromFirestore(doc) : null)
+        .handleError((e) => throw AppException(ErrorHandler.handle(e)));
   }
 
   // ==================== CRUD ====================
@@ -51,19 +53,15 @@ class ClothRepository {
   }) async {
     try {
       final docRef = _clothesRef(uid).doc();
-      final withId = cloth.copyWith();
-      await docRef.set(withId.toFirestore()).timeout(
+      final modelWithId = cloth.copyWith(id: docRef.id);
+      await docRef.set(modelWithId.toFirestore()).timeout(
             const Duration(seconds: 15),
             onTimeout: () => throw TimeoutException(
                 'Koneksi Firestore timeout. Pastikan Cloud Firestore sudah diaktifkan di Firebase Console.'),
           );
-      final snapshot = await docRef.get().timeout(
-            const Duration(seconds: 10),
-            onTimeout: () => throw TimeoutException('Gagal mengambil data dari Firestore.'),
-          );
-      return ClothModel.fromFirestore(snapshot);
-    } on Exception catch (e) {
-      throw Exception(ErrorHandler.handle(e));
+      return modelWithId;
+    } catch (e) {
+      throw AppException(ErrorHandler.handle(e));
     }
   }
 
@@ -73,17 +71,25 @@ class ClothRepository {
     required Map<String, dynamic> data,
   }) async {
     try {
-      await _clothesRef(uid).doc(clothId).update(data);
-    } on Exception catch (e) {
-      throw Exception(ErrorHandler.handle(e));
+      await _clothesRef(uid).doc(clothId).update(data).timeout(
+            const Duration(seconds: 15),
+            onTimeout: () => throw TimeoutException(
+                'Koneksi Firestore timeout saat memperbarui pakaian.'),
+          );
+    } catch (e) {
+      throw AppException(ErrorHandler.handle(e));
     }
   }
 
   Future<void> deleteCloth({required String uid, required String clothId}) async {
     try {
-      await _clothesRef(uid).doc(clothId).delete();
-    } on Exception catch (e) {
-      throw Exception(ErrorHandler.handle(e));
+      await _clothesRef(uid).doc(clothId).delete().timeout(
+            const Duration(seconds: 15),
+            onTimeout: () => throw TimeoutException(
+                'Koneksi Firestore timeout saat menghapus pakaian.'),
+          );
+    } catch (e) {
+      throw AppException(ErrorHandler.handle(e));
     }
   }
 

@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:pakeaja/core/theme/app_theme.dart';
+import 'package:pakeaja/data/models/cloth_model.dart';
 import 'package:pakeaja/features/auth/providers/auth_provider.dart';
 import 'package:pakeaja/features/wardrobe/providers/wardrobe_provider.dart';
 
@@ -203,7 +204,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     );
   }
 
-  Widget _buildRecommendationButton(List clothes) {
+  Widget _buildRecommendationButton(List<ClothModel> clothes) {
     final canRecommend = _hasEnoughClothes(clothes);
     final hasSelection = _selectedOccasion != null;
 
@@ -228,28 +229,26 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     );
   }
 
-  bool _hasEnoughClothes(List clothes) {
+  bool _hasEnoughClothes(List<ClothModel> clothes) {
     // (1 top + 1 bottom + 1 shoes) atau (1 onepiece + 1 shoes)
     int tops = 0, bottoms = 0, shoes = 0, onepieces = 0;
     for (final c in clothes) {
-      final cat = c.category.value;
-      if (cat == 'top') tops++;
-      if (cat == 'bottom') bottoms++;
-      if (cat == 'shoes') shoes++;
-      if (cat == 'onepiece') onepieces++;
+      if (c.category == ClothCategory.top) tops++;
+      if (c.category == ClothCategory.bottom) bottoms++;
+      if (c.category == ClothCategory.shoes) shoes++;
+      if (c.category == ClothCategory.onepiece) onepieces++;
     }
     return (tops >= 1 && bottoms >= 1 && shoes >= 1) ||
         (onepieces >= 1 && shoes >= 1);
   }
 
-  Widget _buildChecklist(List clothes) {
+  Widget _buildChecklist(List<ClothModel> clothes) {
     int tops = 0, bottoms = 0, shoes = 0, onepieces = 0;
     for (final c in clothes) {
-      final cat = c.category.value;
-      if (cat == 'top') tops++;
-      if (cat == 'bottom') bottoms++;
-      if (cat == 'shoes') shoes++;
-      if (cat == 'onepiece') onepieces++;
+      if (c.category == ClothCategory.top) tops++;
+      if (c.category == ClothCategory.bottom) bottoms++;
+      if (c.category == ClothCategory.shoes) shoes++;
+      if (c.category == ClothCategory.onepiece) onepieces++;
     }
 
     final hasTop = tops >= 1 || onepieces >= 1;
@@ -320,7 +319,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     );
   }
 
-  Widget _buildWardrobeSummary(List clothes) {
+  Widget _buildWardrobeSummary(List<ClothModel> clothes) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(

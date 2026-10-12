@@ -1,53 +1,29 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
-enum ClothCategory { top, bottom, onepiece, outer, shoes, accessory }
+enum ClothCategory {
+  top('top', 'Atasan'),
+  bottom('bottom', 'Bawahan'),
+  onepiece('onepiece', 'One-piece'),
+  outer('outer', 'Outer'),
+  shoes('shoes', 'Sepatu'),
+  accessory('accessory', 'Aksesori');
 
-enum ClothStyle { casual, formal, semiFormal, sport }
+  final String value;
+  final String label;
 
-enum ClothWeather { hot, cool, rain }
-
-extension ClothCategoryExt on ClothCategory {
-  String get value => name;
-  String get label {
-    switch (this) {
-      case ClothCategory.top:
-        return 'Atasan';
-      case ClothCategory.bottom:
-        return 'Bawahan';
-      case ClothCategory.onepiece:
-        return 'One-piece';
-      case ClothCategory.outer:
-        return 'Outer';
-      case ClothCategory.shoes:
-        return 'Sepatu';
-      case ClothCategory.accessory:
-        return 'Aksesori';
-    }
-  }
+  const ClothCategory(this.value, this.label);
 }
 
-extension ClothStyleExt on ClothStyle {
-  String get value {
-    switch (this) {
-      case ClothStyle.semiFormal:
-        return 'semi-formal';
-      default:
-        return name;
-    }
-  }
+enum ClothStyle {
+  casual('casual', 'Casual'),
+  formal('formal', 'Formal'),
+  semiFormal('semi-formal', 'Semi-formal'),
+  sport('sport', 'Sport');
 
-  String get label {
-    switch (this) {
-      case ClothStyle.casual:
-        return 'Casual';
-      case ClothStyle.formal:
-        return 'Formal';
-      case ClothStyle.semiFormal:
-        return 'Semi-formal';
-      case ClothStyle.sport:
-        return 'Sport';
-    }
-  }
+  final String value;
+  final String label;
+
+  const ClothStyle(this.value, this.label);
 
   static ClothStyle fromValue(String v) {
     switch (v) {
@@ -65,18 +41,19 @@ extension ClothStyleExt on ClothStyle {
   }
 }
 
-extension ClothWeatherExt on ClothWeather {
-  String get value => name;
-  String get label {
-    switch (this) {
-      case ClothWeather.hot:
-        return 'Panas';
-      case ClothWeather.cool:
-        return 'Sejuk';
-      case ClothWeather.rain:
-        return 'Hujan';
-    }
-  }
+extension ClothStyleExt on ClothStyle {
+  static ClothStyle fromValue(String v) => ClothStyle.fromValue(v);
+}
+
+enum ClothWeather {
+  hot('hot', 'Panas'),
+  cool('cool', 'Sejuk'),
+  rain('rain', 'Hujan');
+
+  final String value;
+  final String label;
+
+  const ClothWeather(this.value, this.label);
 }
 
 /// Warna pakaian (string agar fleksibel)
@@ -147,21 +124,38 @@ class ClothModel {
 
   factory ClothModel.fromFirestore(DocumentSnapshot doc) {
     final data = doc.data() as Map<String, dynamic>? ?? {};
+
+    List<ClothStyle> parseStyles(dynamic stylesData) {
+      if (stylesData is List) {
+        return stylesData
+            .map((s) => ClothStyle.fromValue(s.toString()))
+            .toList();
+      } else if (stylesData is String) {
+        return [ClothStyle.fromValue(stylesData)];
+      }
+      return [ClothStyle.casual];
+    }
+
+    DateTime? parseDate(dynamic val) {
+      if (val == null) return null;
+      if (val is Timestamp) return val.toDate();
+      if (val is String) return DateTime.tryParse(val);
+      if (val is int) return DateTime.fromMillisecondsSinceEpoch(val);
+      return null;
+    }
+
     return ClothModel(
       id: doc.id,
       name: data['name'] as String? ?? '',
       category: _categoryFrom(data['category'] as String?),
       color: data['color'] as String? ?? ClothColor.other,
-      styles: (data['styles'] as List<dynamic>?)
-              ?.map((s) => ClothStyleExt.fromValue(s as String))
-              .toList() ??
-          [ClothStyle.casual],
+      styles: parseStyles(data['styles']),
       weather: _weatherFrom(data['weather'] as String?),
       imageUrl: data['imageUrl'] as String? ?? '',
       thumbUrl: data['thumbUrl'] as String?,
-      lastWornAt: (data['lastWornAt'] as Timestamp?)?.toDate(),
-      wearCount: data['wearCount'] as int? ?? 0,
-      createdAt: (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
+      lastWornAt: parseDate(data['lastWornAt']),
+      wearCount: (data['wearCount'] as num?)?.toInt() ?? 0,
+      createdAt: parseDate(data['createdAt']) ?? DateTime.now(),
     );
   }
 
@@ -212,6 +206,7 @@ class ClothModel {
       };
 
   ClothModel copyWith({
+    String? id,
     String? name,
     ClothCategory? category,
     String? color,
@@ -224,7 +219,7 @@ class ClothModel {
     DateTime? createdAt,
   }) {
     return ClothModel(
-      id: id,
+      id: id ?? this.id,
       name: name ?? this.name,
       category: category ?? this.category,
       color: color ?? this.color,

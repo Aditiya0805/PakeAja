@@ -121,6 +121,8 @@ class _WardrobeScreenState extends ConsumerState<WardrobeScreen> {
           cloth: cloth,
           onTap: () => context.push('/cloth/${cloth.id}'),
           onLongPress: () => _showOptions(cloth),
+          onEdit: () => context.push('/cloth/${cloth.id}/edit'),
+          onDelete: () => _confirmDelete(cloth),
         );
       },
     );
@@ -269,19 +271,41 @@ class _WardrobeScreenState extends ConsumerState<WardrobeScreen> {
   void _confirmDelete(ClothModel cloth) {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (dialogContext) => AlertDialog(
         title: const Text('Hapus Pakaian'),
         content: Text('Yakin hapus "${cloth.name}"? Tindakan tidak dapat dibatalkan.'),
         actions: [
           TextButton(
-            onPressed: () => context.pop(),
+            onPressed: () => Navigator.of(dialogContext).pop(),
             child: const Text('Batal'),
           ),
           FilledButton(
             onPressed: () async {
-              context.pop();
+              Navigator.of(dialogContext).pop();
               final user = ref.read(authStateProvider).value;
               if (user == null) return;
+
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Row(
+                      children: [
+                        const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Text('Menghapus "${cloth.name}"...'),
+                      ],
+                    ),
+                    duration: const Duration(seconds: 2),
+                  ),
+                );
+              }
 
               final success = await ref
                   .read(deleteClothProvider.notifier)
@@ -290,15 +314,23 @@ class _WardrobeScreenState extends ConsumerState<WardrobeScreen> {
                     clothId: cloth.id,
                     imageUrl: cloth.imageUrl,
                   );
-              if (success && mounted) {
+
+              if (!mounted) return;
+              ScaffoldMessenger.of(context).hideCurrentSnackBar();
+
+              if (success) {
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Pakaian berhasil dihapus.')),
+                  const SnackBar(
+                    content: Text('Pakaian berhasil dihapus.'),
+                    backgroundColor: AppTheme.successColor,
+                  ),
                 );
-              } else if (mounted) {
+              } else {
+                final err = ref.read(deleteClothProvider).error?.toString() ??
+                    'Gagal menghapus pakaian.';
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
-                    content: Text(
-                        'Gagal menghapus: ${ref.read(deleteClothProvider).error}'),
+                    content: Text('Gagal menghapus: $err'),
                     backgroundColor: AppTheme.errorColor,
                   ),
                 );
