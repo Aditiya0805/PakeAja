@@ -300,7 +300,7 @@ class _EditClothScreenState extends ConsumerState<EditClothScreen> {
                         label: const Text('Ganti Foto', style: TextStyle(fontSize: 12)),
                         style: FilledButton.styleFrom(
                           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                          backgroundColor: Colors.black.withOpacity(0.6),
+                          backgroundColor: Colors.black.withValues(alpha: 0.6),
                           foregroundColor: Colors.white,
                         ),
                       ),

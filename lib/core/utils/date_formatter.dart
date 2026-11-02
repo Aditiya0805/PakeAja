@@ -42,4 +42,6 @@ class DateFormatter {
   static String timestampToId() {
     return DateTime.now().millisecondsSinceEpoch.toString();
   }
+
+  static formatDate(DateTime day) {}
 }

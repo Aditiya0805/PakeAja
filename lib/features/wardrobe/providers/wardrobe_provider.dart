@@ -17,18 +17,24 @@ final clothesListProvider = StreamProvider.autoDispose<List<ClothModel>>((ref) {
   return ref.watch(clothRepositoryProvider).watchClothes(user.uid);
 });
 
+// ==================== FAVORITES & LAUNDRY STATE (FRONTEND) ====================
+final favoriteClothIdsProvider = StateProvider<Set<String>>((ref) => {});
+final washingClothIdsProvider = StateProvider<Set<String>>((ref) => {});
+
 // ==================== FILTER STATE ====================
 class ClothFilter {
   final String category; // 'all' atau category value
   final String color;
   final String style;
   final String search;
+  final String status; // 'all', 'ready', 'washing'
 
   const ClothFilter({
     this.category = 'all',
     this.color = 'all',
     this.style = 'all',
     this.search = '',
+    this.status = 'all',
   });
 
   ClothFilter copyWith({
@@ -36,30 +42,41 @@ class ClothFilter {
     String? color,
     String? style,
     String? search,
+    String? status,
   }) {
     return ClothFilter(
       category: category ?? this.category,
       color: color ?? this.color,
       style: style ?? this.style,
       search: search ?? this.search,
+      status: status ?? this.status,
     );
   }
 
-  bool matches(ClothModel cloth) {
+  bool matches(ClothModel cloth, {Set<String> washingIds = const {}}) {
     if (category != 'all' && cloth.category.value != category) return false;
     if (color != 'all' && cloth.color != color) return false;
     if (style != 'all' && !cloth.styles.any((s) => s.value == style)) {
       return false;
     }
-    if (search.isNotEmpty &&
-        !cloth.name.toLowerCase().contains(search.toLowerCase())) {
-      return false;
+    if (status == 'ready' && washingIds.contains(cloth.id)) return false;
+    if (status == 'washing' && !washingIds.contains(cloth.id)) return false;
+    if (search.isNotEmpty) {
+      final q = search.toLowerCase();
+      final inName = cloth.name.toLowerCase().contains(q);
+      final inCat = cloth.category.label.toLowerCase().contains(q);
+      final inColor = cloth.colorLabel.toLowerCase().contains(q);
+      if (!inName && !inCat && !inColor) return false;
     }
     return true;
   }
 
   bool get isActive =>
-      category != 'all' || color != 'all' || style != 'all' || search.isNotEmpty;
+      category != 'all' ||
+      color != 'all' ||
+      style != 'all' ||
+      search.isNotEmpty ||
+      status != 'all';
 }
 
 final clothFilterProvider =
@@ -69,7 +86,8 @@ final filteredClothesProvider =
     Provider.autoDispose<List<ClothModel>>((ref) {
   final clothes = ref.watch(clothesListProvider).value ?? [];
   final filter = ref.watch(clothFilterProvider);
-  return clothes.where(filter.matches).toList();
+  final washingIds = ref.watch(washingClothIdsProvider);
+  return clothes.where((c) => filter.matches(c, washingIds: washingIds)).toList();
 });
 
 // ==================== ADD CLOTH ====================

@@ -73,7 +73,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     children: [
                       Container(
                         padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
+                        decoration: const BoxDecoration(
                           color: AppTheme.primaryColor,
                           shape: BoxShape.circle,
                         ),
@@ -90,9 +90,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         ),
                       ),
                       const SizedBox(height: 4),
-                      Text(
+                      const Text(
                         AppConstants.appTagline,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 14,
                           color: AppTheme.textSecondary,
                         ),
@@ -107,7 +107,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   Container(
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: AppTheme.errorColor.withOpacity(0.1),
+                      color: AppTheme.errorColor.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Row(
@@ -178,15 +178,15 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 const SizedBox(height: 16),
 
                 // Divider
-                Row(
+                const Row(
                   children: [
-                    const Expanded(child: Divider()),
+                    Expanded(child: Divider()),
                     Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                      padding: EdgeInsets.symmetric(horizontal: 12),
                       child: Text('atau',
                           style: TextStyle(color: AppTheme.textSecondary)),
                     ),
-                    const Expanded(child: Divider()),
+                    Expanded(child: Divider()),
                   ],
                 ),
                 const SizedBox(height: 16),
@@ -205,7 +205,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Text('Belum punya akun? ',
+                    const Text('Belum punya akun? ',
                         style: TextStyle(color: AppTheme.textSecondary)),
                     TextButton(
                       onPressed: () => context.push('/register'),

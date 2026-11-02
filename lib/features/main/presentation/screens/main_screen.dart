@@ -1,10 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:pakeaja/core/theme/app_theme.dart';
 import 'package:pakeaja/features/home/presentation/screens/home_screen.dart';
-import 'package:pakeaja/features/profile/presentation/screens/profile_screen.dart';
-import 'package:pakeaja/features/wardrobe/presentation/screens/wardrobe_screen.dart';
 import 'package:pakeaja/features/outfits/presentation/screens/favorites_history_screen.dart';
+import 'package:pakeaja/features/profile/presentation/screens/profile_screen.dart';
+import 'package:pakeaja/features/recommendation/presentation/screens/recommendation_screen.dart';
+import 'package:pakeaja/features/wardrobe/presentation/screens/wardrobe_screen.dart';
+
+/// Provider untuk mengontrol index tab utama
+final mainTabIndexProvider = StateProvider<int>((ref) => 0);
 
 class MainScreen extends ConsumerStatefulWidget {
   const MainScreen({super.key});
@@ -14,45 +19,128 @@ class MainScreen extends ConsumerStatefulWidget {
 }
 
 class _MainScreenState extends ConsumerState<MainScreen> {
-  int _currentIndex = 0;
-
   final _pages = const [
     HomeScreen(),
     WardrobeScreen(),
+    RecommendationScreen(),
     FavoritesHistoryScreen(),
     ProfileScreen(),
   ];
 
   @override
   Widget build(BuildContext context) {
+    final currentIndex = ref.watch(mainTabIndexProvider);
+
     return Scaffold(
       body: IndexedStack(
-        index: _currentIndex,
+        index: currentIndex,
         children: _pages,
       ),
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: _currentIndex,
-        onDestinationSelected: (index) => setState(() => _currentIndex = index),
-        destinations: const [
-          NavigationDestination(
-            icon: Icon(Icons.home_outlined),
-            selectedIcon: Icon(Icons.home),
-            label: 'Beranda',
+      bottomNavigationBar: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          border: const Border(
+            top: BorderSide(color: Color(0xFFF0F0F2), width: 1),
           ),
-          NavigationDestination(
-            icon: Icon(Icons.checkroom_outlined),
-            selectedIcon: Icon(Icons.checkroom),
-            label: 'Lemari',
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.03),
+              blurRadius: 8,
+              offset: const Offset(0, -2),
+            ),
+          ],
+        ),
+        child: SafeArea(
+          top: false,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceAround,
+              children: [
+                _buildNavItem(
+                  index: 0,
+                  currentIndex: currentIndex,
+                  label: 'Beranda',
+                  selectedIcon: Icons.home_rounded,
+                  unselectedIcon: Icons.home_outlined,
+                ),
+                _buildNavItem(
+                  index: 1,
+                  currentIndex: currentIndex,
+                  label: 'Lemari',
+                  selectedIcon: Icons.checkroom_rounded,
+                  unselectedIcon: Icons.checkroom_outlined,
+                ),
+                _buildNavItem(
+                  index: 2,
+                  currentIndex: currentIndex,
+                  label: 'Rekomendasi',
+                  selectedIcon: Icons.auto_awesome_rounded,
+                  unselectedIcon: Icons.auto_awesome_outlined,
+                ),
+                _buildNavItem(
+                  index: 3,
+                  currentIndex: currentIndex,
+                  label: 'Favorit',
+                  selectedIcon: Icons.favorite_rounded,
+                  unselectedIcon: Icons.favorite_border_rounded,
+                ),
+                _buildNavItem(
+                  index: 4,
+                  currentIndex: currentIndex,
+                  label: 'Profil',
+                  selectedIcon: Icons.person_rounded,
+                  unselectedIcon: Icons.person_outline_rounded,
+                ),
+              ],
+            ),
           ),
-          NavigationDestination(
-            icon: Icon(Icons.favorite_outline),
-            selectedIcon: Icon(Icons.favorite),
-            label: 'Favorit',
+        ),
+      ),
+    );
+  }
+
+  Widget _buildNavItem({
+    required int index,
+    required int currentIndex,
+    required String label,
+    required IconData selectedIcon,
+    required IconData unselectedIcon,
+  }) {
+    final isSelected = currentIndex == index;
+
+    return GestureDetector(
+      onTap: () {
+        ref.read(mainTabIndexProvider.notifier).state = index;
+      },
+      behavior: HitTestBehavior.opaque,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          AnimatedContainer(
+            duration: const Duration(milliseconds: 200),
+            width: isSelected ? 56 : 40,
+            height: 32,
+            decoration: BoxDecoration(
+              color: isSelected ? AppTheme.primaryColor : Colors.transparent,
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Center(
+              child: Icon(
+                isSelected ? selectedIcon : unselectedIcon,
+                color: isSelected ? Colors.white : const Color(0xFF6B7280),
+                size: 20,
+              ),
+            ),
           ),
-          NavigationDestination(
-            icon: Icon(Icons.person_outline),
-            selectedIcon: Icon(Icons.person),
-            label: 'Profil',
+          const SizedBox(height: 4),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 11.5,
+              fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+              color: isSelected ? AppTheme.textPrimary : const Color(0xFF6B7280),
+            ),
           ),
         ],
       ),

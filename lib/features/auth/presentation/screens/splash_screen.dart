@@ -424,9 +424,9 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
               ),
             ),
             const SizedBox(height: 4),
-            Text(
+            const Text(
               AppConstants.appTagline,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 13,
                 fontWeight: FontWeight.w500,
                 color: AppTheme.textSecondary,

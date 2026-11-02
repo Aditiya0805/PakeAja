@@ -14,7 +14,9 @@ import 'package:pakeaja/features/auth/providers/auth_provider.dart' show authSta
 import 'package:pakeaja/features/wardrobe/providers/wardrobe_provider.dart';
 
 class AddClothScreen extends ConsumerStatefulWidget {
-  const AddClothScreen({super.key});
+  final String? initialSource;
+
+  const AddClothScreen({super.key, this.initialSource});
 
   @override
   ConsumerState<AddClothScreen> createState() => _AddClothScreenState();
@@ -35,6 +37,21 @@ class _AddClothScreenState extends ConsumerState<AddClothScreen> {
   ClothWeather _weather = ClothWeather.cool;
 
   @override
+  void initState() {
+    super.initState();
+    if (widget.initialSource != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        if (widget.initialSource == 'camera') {
+          _pickImage(true);
+        } else if (widget.initialSource == 'gallery') {
+          _pickImage(false);
+        }
+      });
+    }
+  }
+
+  @override
   void dispose() {
     _nameController.dispose();
     _notesController.dispose();
@@ -46,6 +63,8 @@ class _AddClothScreenState extends ConsumerState<AddClothScreen> {
     final result = fromCamera
         ? await imageService.pickFromCamera()
         : await imageService.pickFromGallery();
+
+    if (!mounted) return;
 
     if (result.bytes != null) {
       setState(() {
@@ -124,7 +143,7 @@ class _AddClothScreenState extends ConsumerState<AddClothScreen> {
                   Container(
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: AppTheme.errorColor.withOpacity(0.1),
+                      color: AppTheme.errorColor.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Text(_error!,
@@ -370,7 +389,7 @@ class _AddClothScreenState extends ConsumerState<AddClothScreen> {
                 leading: Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: AppTheme.primaryColor.withOpacity(0.1),
+                    color: AppTheme.primaryColor.withValues(alpha: 0.1),
                     shape: BoxShape.circle,
                   ),
                   child: const Icon(Icons.camera_alt,
@@ -387,7 +406,7 @@ class _AddClothScreenState extends ConsumerState<AddClothScreen> {
                 leading: Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: AppTheme.primaryColor.withOpacity(0.1),
+                    color: AppTheme.primaryColor.withValues(alpha: 0.1),
                     shape: BoxShape.circle,
                   ),
                   child: const Icon(Icons.photo_library,

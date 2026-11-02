@@ -7,6 +7,41 @@ import 'package:pakeaja/core/providers/service_providers.dart';
 import 'package:pakeaja/core/utils/error_handler.dart';
 import 'package:pakeaja/features/auth/providers/auth_provider.dart'
     show authStateProvider;
+import 'package:pakeaja/features/outfits/providers/outfit_provider.dart';
+import 'package:pakeaja/features/wardrobe/providers/wardrobe_provider.dart';
+
+// ==================== USER STATS ====================
+final userStatsProvider =
+    Provider.autoDispose<AsyncValue<Map<String, int>>>((ref) {
+  final clothesState = ref.watch(clothesListProvider);
+  final favoritesState = ref.watch(favoriteOutfitsProvider);
+  final historyState = ref.watch(outfitHistoryProvider);
+
+  if (clothesState.isLoading ||
+      favoritesState.isLoading ||
+      historyState.isLoading) {
+    return const AsyncValue.loading();
+  }
+
+  if (clothesState.hasError) {
+    return AsyncValue.error(clothesState.error!, clothesState.stackTrace!);
+  }
+
+  final clothes = clothesState.value ?? [];
+  final favorites = favoritesState.value ?? [];
+  final history = historyState.value ?? [];
+
+  int wornCount = 0;
+  for (final o in history) {
+    wornCount += o.wornDates.length;
+  }
+
+  return AsyncValue.data({
+    'totalClothes': clothes.length,
+    'totalFavorites': favorites.length,
+    'totalWorn': wornCount,
+  });
+});
 
 // ==================== PROFILE UPDATE ====================
 final updateProfileProvider =

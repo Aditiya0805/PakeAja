@@ -5,7 +5,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pakeaja/core/constants/app_constants.dart';
 import 'package:pakeaja/core/theme/app_theme.dart';
 import 'package:pakeaja/features/auth/providers/auth_provider.dart';
-import 'package:pakeaja/features/outfits/providers/outfit_provider.dart';
 import 'package:pakeaja/features/profile/providers/profile_provider.dart';
 
 class ProfileScreen extends ConsumerStatefulWidget {
@@ -22,158 +21,344 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     final stats = ref.watch(userStatsProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Profil Saya')),
-      body: RefreshIndicator(
-        onRefresh: () async {
-          ref.invalidate(userDataProvider);
-          ref.invalidate(userStatsProvider);
-        },
-        child: SingleChildScrollView(
-          physics: const AlwaysScrollableScrollPhysics(),
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            children: [
-              // Foto profil
-              CircleAvatar(
-                radius: 48,
-                backgroundColor: AppTheme.primaryColor.withOpacity(0.1),
-                backgroundImage: user?.photoUrl != null
-                    ? CachedNetworkImageProvider(user!.photoUrl!)
-                    : null,
-                child: user?.photoUrl == null
-                    ? const Icon(Icons.person,
-                        size: 48, color: AppTheme.primaryColor)
-                    : null,
-              ),
-              const SizedBox(height: 16),
+      backgroundColor: AppTheme.backgroundColor,
+      body: SafeArea(
+        child: RefreshIndicator(
+          color: AppTheme.primaryColor,
+          onRefresh: () async {
+            ref.invalidate(userDataProvider);
+            ref.invalidate(userStatsProvider);
+          },
+          child: SingleChildScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // 1. Header Profil
+                _buildHeader(),
+                const SizedBox(height: 20),
 
-              // Nama & email
-              Text(
-                user?.name ?? 'Pengguna',
-                style: const TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.bold,
+                // 2. Kartu Profil Pengguna
+                _buildUserProfileCard(user),
+                const SizedBox(height: 18),
+
+                // 3. Statistik Lemari & Outfit
+                _buildStats(stats),
+                const SizedBox(height: 22),
+
+                // 4. Menu & Pengaturan
+                const Text(
+                  'PENGATURAN & LAINNYA',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 0.6,
+                    color: Color(0xFF6B7280),
+                  ),
                 ),
+                const SizedBox(height: 10),
+                _buildMenu(context),
+                const SizedBox(height: 22),
+
+                // 5. Tentang Aplikasi
+                _buildAboutCard(),
+                const SizedBox(height: 22),
+
+                // 6. Danger Zone (Logout & Hapus Akun)
+                _buildDangerZone(context),
+                const SizedBox(height: 40),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ==================== 1. HEADER ====================
+  Widget _buildHeader() {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        const Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Akun Pengguna',
+              style: TextStyle(
+                fontSize: 12.5,
+                fontWeight: FontWeight.w500,
+                color: Color(0xFF5A626A),
               ),
-              const SizedBox(height: 4),
-              Text(
-                user?.email ?? '',
-                style: const TextStyle(
-                  color: AppTheme.textSecondary,
-                ),
+            ),
+            Text(
+              'Profil Saya',
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: AppTheme.textPrimary,
               ),
-              const SizedBox(height: 24),
-
-              // Statistik
-              _buildStats(stats),
-              const SizedBox(height: 24),
-
-              // Menu
-              _buildMenu(context),
-              const SizedBox(height: 24),
-
-              // Tentang
-              _buildAbout(),
-              const SizedBox(height: 24),
-
-              // Logout & Hapus Akun
-              _buildDangerZone(context),
+            ),
+          ],
+        ),
+        Container(
+          width: 40,
+          height: 40,
+          decoration: BoxDecoration(
+            color: Colors.white,
+            shape: BoxShape.circle,
+            border: Border.all(color: const Color(0xFFEEF0F2)),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.02),
+                blurRadius: 4,
+                offset: const Offset(0, 1),
+              ),
             ],
           ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildStats(AsyncValue<Map<String, int>> stats) {
-    final data = stats.value ?? {'totalClothes': 0, 'totalFavorites': 0, 'totalWorn': 0};
-
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppTheme.surfaceColor,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppTheme.borderColor),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceAround,
-        children: [
-          _statItem(
-            Icons.checkroom,
-            '${data['totalClothes'] ?? 0}',
-            'Pakaian',
-          ),
-          _statItem(
-            Icons.favorite,
-            '${data['totalFavorites'] ?? 0}',
-            'Favorit',
-          ),
-          _statItem(
-            Icons.history,
-            '${data['totalWorn'] ?? 0}',
-            'Dipakai',
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _statItem(IconData icon, String value, String label) {
-    return Column(
-      children: [
-        Icon(icon, color: AppTheme.primaryColor, size: 24),
-        const SizedBox(height: 4),
-        Text(
-          value,
-          style: const TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        Text(
-          label,
-          style: const TextStyle(
-            fontSize: 12,
-            color: AppTheme.textSecondary,
+          child: IconButton(
+            padding: EdgeInsets.zero,
+            icon: const Icon(
+              Icons.notifications_none_rounded,
+              color: Color(0xFF2C3E50),
+              size: 20,
+            ),
+            onPressed: () {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Akun Anda aktif dan terlindungi.'),
+                  duration: Duration(seconds: 2),
+                ),
+              );
+            },
           ),
         ),
       ],
     );
   }
 
-  Widget _buildMenu(BuildContext context) {
-    return Material(
-      color: AppTheme.surfaceColor,
-      borderRadius: BorderRadius.circular(12),
-      child: Container(
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: AppTheme.borderColor),
+  // ==================== 2. KARTU PROFIL ====================
+  Widget _buildUserProfileCard(dynamic user) {
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: const Color(0xFFEEF0F2)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.02),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          // Foto Profil dengan status badge hijau
+          Stack(
+            children: [
+              CircleAvatar(
+                radius: 34,
+                backgroundColor: AppTheme.primaryColor.withValues(alpha: 0.08),
+                backgroundImage: user?.photoUrl != null
+                    ? CachedNetworkImageProvider(user!.photoUrl!)
+                    : null,
+                child: user?.photoUrl == null
+                    ? const Icon(Icons.person,
+                        size: 34, color: AppTheme.primaryColor)
+                    : null,
+              ),
+              Positioned(
+                right: 2,
+                bottom: 2,
+                child: Container(
+                  width: 13,
+                  height: 13,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF27AE60),
+                    shape: BoxShape.circle,
+                    border: Border.all(color: Colors.white, width: 2),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(width: 16),
+          // Nama & Email
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  user?.name ?? 'Pengguna PakeAja',
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: AppTheme.textPrimary,
+                  ),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  user?.email ?? '',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 12.5,
+                    color: Color(0xFF757575),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                GestureDetector(
+                  onTap: _showEditProfileDialog,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: AppTheme.primaryColor.withValues(alpha: 0.08),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.edit_outlined,
+                            size: 13, color: AppTheme.primaryColor),
+                        SizedBox(width: 4),
+                        Text(
+                          'Ubah Profil',
+                          style: TextStyle(
+                            fontSize: 11.5,
+                            fontWeight: FontWeight.bold,
+                            color: AppTheme.primaryColor,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ==================== 3. STATISTIK ====================
+  Widget _buildStats(AsyncValue<Map<String, int>> stats) {
+    final data = stats.value ??
+        {'totalClothes': 0, 'totalFavorites': 0, 'totalWorn': 0};
+
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 8),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: const Color(0xFFEEF0F2)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.02),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceAround,
+        children: [
+          _statItem(
+            icon: Icons.checkroom_outlined,
+            value: '${data['totalClothes'] ?? 0}',
+            label: 'Pakaian',
+          ),
+          Container(height: 32, width: 1, color: const Color(0xFFF0F0F2)),
+          _statItem(
+            icon: Icons.favorite_border_rounded,
+            value: '${data['totalFavorites'] ?? 0}',
+            label: 'Favorit',
+          ),
+          Container(height: 32, width: 1, color: const Color(0xFFF0F0F2)),
+          _statItem(
+            icon: Icons.history_rounded,
+            value: '${data['totalWorn'] ?? 0}',
+            label: 'Dipakai',
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _statItem({
+    required IconData icon,
+    required String value,
+    required String label,
+  }) {
+    return Column(
+      children: [
+        Icon(icon, color: AppTheme.primaryColor, size: 22),
+        const SizedBox(height: 6),
+        Text(
+          value,
+          style: const TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+            color: AppTheme.textPrimary,
+          ),
         ),
+        const SizedBox(height: 2),
+        Text(
+          label,
+          style: const TextStyle(
+            fontSize: 12,
+            color: Color(0xFF757575),
+          ),
+        ),
+      ],
+    );
+  }
+
+  // ==================== 4. MENU ====================
+  Widget _buildMenu(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: const Color(0xFFEEF0F2)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.02),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(18),
         child: Column(
           children: [
             _menuTile(
-              icon: Icons.edit_outlined,
-              title: 'Edit Profil',
-              onTap: () => _showEditProfileDialog(),
+              icon: Icons.person_outline_rounded,
+              title: 'Edit Nama Profil',
+              onTap: _showEditProfileDialog,
             ),
-            const Divider(height: 1, indent: 56),
+            const Divider(height: 1, indent: 56, color: Color(0xFFF0F0F2)),
             _menuTile(
-              icon: Icons.settings_outlined,
-              title: 'Pengaturan',
-              onTap: () => _showComingSoon('Pengaturan'),
+              icon: Icons.tune_rounded,
+              title: 'Preferensi Gaya Busana',
+              onTap: () => _showComingSoon('Preferensi Gaya Busana'),
             ),
-            const Divider(height: 1, indent: 56),
+            const Divider(height: 1, indent: 56, color: Color(0xFFF0F0F2)),
             _menuTile(
-              icon: Icons.info_outline,
+              icon: Icons.info_outline_rounded,
               title: 'Tentang PakeAja',
-              onTap: () => _showAboutDialog(),
+              onTap: _showAboutDialog,
             ),
-            const Divider(height: 1, indent: 56),
+            const Divider(height: 1, indent: 56, color: Color(0xFFF0F0F2)),
             _menuTile(
               icon: Icons.privacy_tip_outlined,
-              title: 'Privacy Policy',
-              onTap: () => _showComingSoon('Privacy Policy'),
+              title: 'Kebijakan Privasi',
+              onTap: () => _showComingSoon('Kebijakan Privasi'),
             ),
           ],
         ),
@@ -187,46 +372,60 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     required VoidCallback onTap,
   }) {
     return ListTile(
-      leading: Icon(icon, color: AppTheme.primaryColor),
-      title: Text(title),
-      trailing: const Icon(Icons.chevron_right, color: AppTheme.textHint),
+      leading: Container(
+        width: 36,
+        height: 36,
+        decoration: BoxDecoration(
+          color: const Color(0xFFF7F8FA),
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: Icon(icon, color: const Color(0xFF4A5056), size: 19),
+      ),
+      title: Text(
+        title,
+        style: const TextStyle(
+          fontSize: 14,
+          fontWeight: FontWeight.w600,
+          color: AppTheme.textPrimary,
+        ),
+      ),
+      trailing: const Icon(Icons.chevron_right_rounded,
+          color: Color(0xFFBDBDBD), size: 20),
       onTap: onTap,
     );
   }
 
-  Widget _buildAbout() {
+  // ==================== 5. TENTANG APLIKASI ====================
+  Widget _buildAboutCard() {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppTheme.primaryColor.withOpacity(0.05),
-        borderRadius: BorderRadius.circular(12),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: const Color(0xFFEEF0F2)),
       ),
-      child: Column(
+      child: const Row(
         children: [
-          const Icon(Icons.checkroom,
-              color: AppTheme.primaryColor, size: 32),
-          const SizedBox(height: 8),
-          const Text(
-            'PakeAja',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          const SizedBox(height: 4),
-          const Text(
-            AppConstants.appTagline,
-            style: TextStyle(
-              fontSize: 13,
-              color: AppTheme.textSecondary,
-            ),
-          ),
-          const SizedBox(height: 8),
-          const Text(
-            'Versi 1.0.0',
-            style: TextStyle(
-              fontSize: 12,
-              color: AppTheme.textHint,
+          Icon(Icons.auto_awesome, color: AppTheme.primaryColor, size: 24),
+          SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'PakeAja AI v1.0.0',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                    color: AppTheme.textPrimary,
+                  ),
+                ),
+                SizedBox(height: 2),
+                Text(
+                  AppConstants.appTagline,
+                  style: TextStyle(fontSize: 12, color: Color(0xFF757575)),
+                ),
+              ],
             ),
           ),
         ],
@@ -234,51 +433,74 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     );
   }
 
+  // ==================== 6. DANGER ZONE ====================
   Widget _buildDangerZone(BuildContext context) {
-    return Material(
-      color: Colors.transparent,
-      borderRadius: BorderRadius.circular(12),
-      child: Container(
-        width: double.infinity,
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: AppTheme.errorColor.withOpacity(0.3)),
-        ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(12),
-          child: Column(
-            children: [
-              ListTile(
-                leading: const Icon(Icons.logout, color: AppTheme.errorColor),
-                title: const Text(
-                  'Logout',
-                  style: TextStyle(color: AppTheme.errorColor),
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: const Color(0xFFFDE8E8)),
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(18),
+        child: Column(
+          children: [
+            ListTile(
+              leading: Container(
+                width: 36,
+                height: 36,
+                decoration: const BoxDecoration(
+                  color: Color(0xFFFDE8E8),
+                  shape: BoxShape.circle,
                 ),
-                onTap: () => _confirmLogout(),
+                child: const Icon(Icons.logout_rounded,
+                    color: AppTheme.errorColor, size: 18),
               ),
-              const Divider(height: 1, indent: 56),
-              ListTile(
-                leading: const Icon(Icons.delete_forever,
-                    color: AppTheme.errorColor),
-                title: const Text(
-                  'Hapus Akun',
-                  style: TextStyle(color: AppTheme.errorColor),
+              title: const Text(
+                'Keluar dari Akun',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                  color: AppTheme.errorColor,
                 ),
-                onTap: () => _confirmDeleteAccount(),
               ),
-            ],
-          ),
+              onTap: _confirmLogout,
+            ),
+            const Divider(height: 1, indent: 56, color: Color(0xFFFEECEC)),
+            ListTile(
+              leading: Container(
+                width: 36,
+                height: 36,
+                decoration: const BoxDecoration(
+                  color: Color(0xFFFDE8E8),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.delete_forever_rounded,
+                    color: AppTheme.errorColor, size: 18),
+              ),
+              title: const Text(
+                'Hapus Akun Permanen',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                  color: AppTheme.errorColor,
+                ),
+              ),
+              onTap: _confirmDeleteAccount,
+            ),
+          ],
         ),
       ),
     );
   }
 
+  // ==================== DIALOGS & ACTIONS ====================
   Future<void> _confirmLogout() async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Logout'),
-        content: const Text('Yakin ingin logout?'),
+        title: const Text('Keluar dari Akun'),
+        content: const Text('Yakin ingin keluar dari akun PakeAja kamu?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
@@ -286,23 +508,21 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           ),
           FilledButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('Logout'),
+            style: FilledButton.styleFrom(
+              backgroundColor: AppTheme.primaryColor,
+            ),
+            child: const Text('Keluar'),
           ),
         ],
       ),
     );
 
     if (confirmed == true) {
-      final success =
-          await ref.read(authControllerProvider.notifier).logout();
-      if (success && mounted) {
-        // Navigation akan otomatis redirect ke /login via router
-      }
+      await ref.read(authControllerProvider.notifier).logout();
     }
   }
 
   Future<void> _confirmDeleteAccount() async {
-    // Minta password untuk verifikasi
     final passwordController = TextEditingController();
 
     final confirmed = await showDialog<bool>(
@@ -314,7 +534,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Text(
-              'Tindakan ini akan menghapus semua data kamu secara permanen (pakaian, outfit, favorit, dan riwayat).',
+              'Tindakan ini akan menghapus semua data pakaian, outfit, favorit, dan riwayat kamu secara permanen.',
+              style: TextStyle(fontSize: 13),
             ),
             const SizedBox(height: 16),
             TextField(
@@ -322,7 +543,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               obscureText: true,
               decoration: const InputDecoration(
                 labelText: 'Password',
-                hintText: 'Masukkan password untuk verifikasi',
+                hintText: 'Masukkan password verifikasi',
               ),
             ),
           ],
@@ -337,7 +558,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             style: FilledButton.styleFrom(
               backgroundColor: AppTheme.errorColor,
             ),
-            child: const Text('Hapus'),
+            child: const Text('Hapus Permanen'),
           ),
         ],
       ),
@@ -371,7 +592,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         content: TextField(
           controller: nameController,
           decoration: const InputDecoration(
-            labelText: 'Nama',
+            labelText: 'Nama Lengkap',
           ),
         ),
         actions: [
@@ -381,6 +602,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           ),
           FilledButton(
             onPressed: () => Navigator.pop(context, true),
+            style: FilledButton.styleFrom(
+              backgroundColor: AppTheme.primaryColor,
+            ),
             child: const Text('Simpan'),
           ),
         ],
@@ -401,7 +625,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       builder: (context) => AlertDialog(
         title: const Text('Tentang PakeAja'),
         content: const Text(
-          'PakeAja adalah aplikasi rekomendasi outfit harian yang membantu kamu menentukan pakaian berdasarkan pakaian yang sudah kamu miliki.\n\n'
+          'PakeAja adalah aplikasi asisten fashion harian berbasis AI yang memadukan pakaian terbaik langsung dari lemarimu.\n\n'
           'Bingung mau pake apa? PakeAja.',
         ),
         actions: [

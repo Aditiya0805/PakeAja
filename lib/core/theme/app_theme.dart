@@ -1,25 +1,25 @@
 import 'package:flutter/material.dart';
 
 class AppTheme {
-  static const Color primaryColor = Color(0xFF6B5B95);
-  static const Color primaryLight = Color(0xFFA78BCA);
-  static const Color primaryDark = Color(0xFF4A3D6B);
+  static const Color primaryColor = Color(0xFFDE3B40);
+  static const Color primaryLight = Color(0xFFFDEDEE);
+  static const Color primaryDark = Color(0xFFB5262B);
   
-  static const Color accentColor = Color(0xFFFF6B6B);
-  static const Color successColor = Color(0xFF51CF66);
-  static const Color warningColor = Color(0xFFFFA500);
-  static const Color errorColor = Color(0xFFFF4757);
+  static const Color accentColor = Color(0xFFDE3B40);
+  static const Color successColor = Color(0xFF1E8E3E);
+  static const Color warningColor = Color(0xFFF59E0B);
+  static const Color errorColor = Color(0xFFE53935);
 
-  static const Color backgroundColor = Color(0xFFFAFAFA);
+  static const Color backgroundColor = Color(0xFFF8F9FA);
   static const Color surfaceColor = Colors.white;
-  static const Color borderColor = Color(0xFFE0E0E0);
+  static const Color borderColor = Color(0xFFEEF0F2);
 
-  static const Color textPrimary = Color(0xFF2C3E50);
-  static const Color textSecondary = Color(0xFF7F8C8D);
-  static const Color textHint = Color(0xFFBDC3C7);
+  static const Color textPrimary = Color(0xFF1E2022);
+  static const Color textSecondary = Color(0xFF757575);
+  static const Color textHint = Color(0xFF9E9E9E);
 
-  static const Color neutralColors = Color(0xFF95A5A6);
-  static const Color dividerColor = Color(0xFFECF0F1);
+  static const Color neutralColors = Color(0xFF8E959E);
+  static const Color dividerColor = Color(0xFFF0F0F2);
 
   static ThemeData lightTheme = ThemeData(
     useMaterial3: true,

@@ -100,7 +100,10 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/cloth/add',
         name: 'add-cloth',
-        builder: (context, state) => const AddClothScreen(),
+        builder: (context, state) {
+          final source = state.uri.queryParameters['source'];
+          return AddClothScreen(initialSource: source);
+        },
       ),
       GoRoute(
         path: '/cloth/:id',

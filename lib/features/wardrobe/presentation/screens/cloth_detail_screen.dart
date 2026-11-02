@@ -163,7 +163,7 @@ class _ClothDetailScreenState extends ConsumerState<ClothDetailScreen> {
             width: 100,
             child: Text(
               label,
-              style: TextStyle(
+              style: const TextStyle(
                 color: AppTheme.textSecondary,
                 fontSize: 14,
               ),
@@ -208,7 +208,7 @@ class _ClothDetailScreenState extends ConsumerState<ClothDetailScreen> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppTheme.primaryColor.withOpacity(0.08),
+        color: AppTheme.primaryColor.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(12),
       ),
       child: Column(

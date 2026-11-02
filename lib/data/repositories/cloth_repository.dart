@@ -124,20 +124,30 @@ class OutfitRepository {
       _db.collection('users').doc(uid).collection('outfits');
 
   Stream<List<OutfitModel>> watchOutfits(String uid, {bool favoriteOnly = false}) {
-    Query query = _outfitsRef(uid).orderBy('createdAt', descending: true);
-    if (favoriteOnly) query = query.where('isFavorite', isEqualTo: true);
-    return query
+    return _outfitsRef(uid)
         .snapshots()
-        .map((s) => s.docs.map((d) => OutfitModel.fromFirestore(d)).toList())
+        .map((s) {
+          var list = s.docs.map((d) => OutfitModel.fromFirestore(d)).toList();
+          if (favoriteOnly) {
+            list = list.where((o) => o.isFavorite).toList();
+          }
+          list.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+          return list;
+        })
         .handleError((e) => throw Exception(ErrorHandler.handle(e)));
   }
 
   Stream<List<OutfitModel>> watchHistory(String uid) {
     return _outfitsRef(uid)
-        .where('wornDates', isNotEqualTo: null)
-        .orderBy('createdAt', descending: true)
         .snapshots()
-        .map((s) => s.docs.map((d) => OutfitModel.fromFirestore(d)).toList())
+        .map((s) {
+          final list = s.docs
+              .map((d) => OutfitModel.fromFirestore(d))
+              .where((o) => o.wornDates.isNotEmpty)
+              .toList();
+          list.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+          return list;
+        })
         .handleError((e) => throw Exception(ErrorHandler.handle(e)));
   }
 

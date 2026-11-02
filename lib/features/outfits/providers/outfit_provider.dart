@@ -15,7 +15,7 @@ final outfitRepositoryProvider =
 // ==================== FAVORITES ====================
 final favoriteOutfitsProvider =
     StreamProvider.autoDispose<List<OutfitModel>>((ref) {
-  final user = ref.watch(authStateProvider).value;
+  final user = ref.watch(authStateProvider).valueOrNull;
   if (user == null) return Stream.value([]);
   return ref
       .watch(outfitRepositoryProvider)
@@ -25,7 +25,7 @@ final favoriteOutfitsProvider =
 // ==================== HISTORY ====================
 final outfitHistoryProvider =
     StreamProvider.autoDispose<List<OutfitModel>>((ref) {
-  final user = ref.watch(authStateProvider).value;
+  final user = ref.watch(authStateProvider).valueOrNull;
   if (user == null) return Stream.value([]);
   return ref.watch(outfitRepositoryProvider).watchHistory(user.uid);
 });
@@ -188,7 +188,7 @@ class DeleteOutfitNotifier extends AsyncNotifier<void> {
 
 // ==================== STATS ====================
 final userStatsProvider = FutureProvider.autoDispose<Map<String, int>>((ref) async {
-  final user = ref.watch(authStateProvider).value;
+  final user = ref.watch(authStateProvider).valueOrNull;
   if (user == null) {
     return {'totalClothes': 0, 'totalFavorites': 0, 'totalWorn': 0};
   }

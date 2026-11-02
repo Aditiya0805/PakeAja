@@ -76,7 +76,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                   Container(
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: AppTheme.errorColor.withOpacity(0.1),
+                      color: AppTheme.errorColor.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Row(
@@ -149,7 +149,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Text('Sudah punya akun? ',
+                    const Text('Sudah punya akun? ',
                         style: TextStyle(color: AppTheme.textSecondary)),
                     TextButton(
                       onPressed: () => context.pop(),
