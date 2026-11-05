@@ -68,15 +68,49 @@ class _RecommendationScreenState extends ConsumerState<RecommendationScreen> {
   @override
   void initState() {
     super.initState();
-    _selectedAgenda = widget.occasion;
+    final currentRec = ref.read(recommendationProvider).recommendation;
+    if (widget.occasion != 'Kuliah') {
+      _selectedAgenda = widget.occasion;
+    } else if (currentRec != null && currentRec.occasion.isNotEmpty) {
+      _selectedAgenda = _getAgendaLabelForOccasion(currentRec.occasion);
+    } else {
+      _selectedAgenda = 'Kuliah';
+    }
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(recommendationProvider.notifier).recommend(_getOccasionKey());
     });
   }
 
+  String _getAgendaLabelForOccasion(String occasion) {
+    final lower = occasion.toLowerCase().replaceAll('-', ' ');
+    for (final agenda in _agendaList) {
+      final occ =
+          (agenda['occasion'] as String).toLowerCase().replaceAll('-', ' ');
+      final label =
+          (agenda['label'] as String).toLowerCase().replaceAll('-', ' ');
+      if (occ == lower ||
+          label == lower ||
+          lower.contains(occ) ||
+          occ.contains(lower)) {
+        return agenda['label'] as String;
+      }
+    }
+    return _agendaList.first['label'] as String;
+  }
+
   String _getOccasionKey() {
+    final target = _selectedAgenda.toLowerCase().replaceAll('-', ' ');
     final matched = _agendaList.firstWhere(
-      (a) => a['label'] == _selectedAgenda || a['occasion'] == _selectedAgenda,
+      (a) {
+        final label =
+            (a['label'] as String).toLowerCase().replaceAll('-', ' ');
+        final occasion =
+            (a['occasion'] as String).toLowerCase().replaceAll('-', ' ');
+        return label == target ||
+            occasion == target ||
+            target.contains(occasion) ||
+            occasion.contains(target);
+      },
       orElse: () => _agendaList.first,
     );
     return matched['occasion'] as String;
@@ -106,7 +140,20 @@ class _RecommendationScreenState extends ConsumerState<RecommendationScreen> {
   @override
   Widget build(BuildContext context) {
     final recState = ref.watch(recommendationProvider);
-    final clothes = ref.watch(clothesListProvider).value ?? [];
+    final clothes = ref.watch(clothesListProvider).valueOrNull ?? [];
+
+    // Otomatis buat rekomendasi jika pakaian sudah cukup dan rekomendasi masih kosong
+    if (_hasEnoughClothes(clothes) &&
+        recState.recommendation == null &&
+        !recState.isLoading) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted &&
+            ref.read(recommendationProvider).recommendation == null &&
+            !ref.read(recommendationProvider).isLoading) {
+          ref.read(recommendationProvider.notifier).recommend(_getOccasionKey());
+        }
+      });
+    }
 
     return Scaffold(
       backgroundColor: AppTheme.backgroundColor,
@@ -495,18 +542,18 @@ class _RecommendationScreenState extends ConsumerState<RecommendationScreen> {
                   color: const Color(0xFFD9F3E4),
                   borderRadius: BorderRadius.circular(16),
                 ),
-                child: const Row(
+                child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(
+                    const Icon(
                       Icons.check_circle_rounded,
                       size: 13,
                       color: Color(0xFF1E8E3E),
                     ),
-                    SizedBox(width: 5),
+                    const SizedBox(width: 5),
                     Text(
-                      '98% Sangat Serasi',
-                      style: TextStyle(
+                      '${rec.score.round()}% Sangat Serasi',
+                      style: const TextStyle(
                         fontSize: 11.5,
                         fontWeight: FontWeight.bold,
                         color: Color(0xFF167C37),
@@ -793,14 +840,18 @@ class _RecommendationScreenState extends ConsumerState<RecommendationScreen> {
   }
 
   String _getPersonalizedStylistNote(String topName, String bottomName) {
-    if (_selectedAgenda.contains('Kuliah')) {
-      return '"Paduan $topName dan $bottomName warna netral memberi kesan rapi namun santai, ideal untuk suhu 28°C hari ini."';
+    if (_selectedAgenda.contains('Semi') || _selectedAgenda.contains('Smart')) {
+      return '"Paduan semi-formal $topName dan $bottomName memberikan kesan rapi, profesional, dan tetap santai, sangat serasi untuk agenda Semi Formal hari ini."';
+    } else if (_selectedAgenda.contains('Formal')) {
+      return '"Setelan formal $topName dan $bottomName memberikan tampilan profesional, bersih, dan berwibawa."';
+    } else if (_selectedAgenda.contains('Kuliah')) {
+      return '"Paduan smart-casual $topName dan $bottomName memberi kesan rapi namun santai, ideal untuk aktivitas kampus hari ini."';
     } else if (_selectedAgenda.contains('Santai')) {
       return '"Kombinasi kasual yang nyaman dan bernapas, pas untuk nongkrong dan santai seharian."';
-    } else if (_selectedAgenda.contains('Formal')) {
-      return '"Kombinasi $topName dan $bottomName memberikan tampilan profesional, bersih, dan berwibawa."';
     } else if (_selectedAgenda.contains('Olahraga')) {
-      return '"Material elastis dan fleksibel memberikan sirkulasi udara optimal untuk mobilitas tinggi."';
+      return '"Setelan aktif $topName dan $bottomName memberikan sirkulasi udara optimal dan fleksibilitas untuk mobilitas tinggi."';
+    } else if (_selectedAgenda.contains('Organisasi')) {
+      return '"Setelan representatif $topName dan $bottomName memberikan kesan kredibel dan siap untuk forum organisasi."';
     }
     return '"Kombinasi warna yang harmonis dari lemarimu, siap menemani aktivitas dengan rasa percaya diri."';
   }
@@ -943,8 +994,26 @@ class _RecommendationScreenState extends ConsumerState<RecommendationScreen> {
         return c.category == ClothCategory.outer ||
             c.category == ClothCategory.accessory;
       }
+      if (category == ClothCategory.top) {
+        return c.category == ClothCategory.top ||
+            c.category == ClothCategory.onepiece;
+      }
       return c.category == category;
     }).toList();
+
+    // Urutkan pakaian yang paling sesuai dengan gaya agenda yang sedang dipilih
+    final occasionKey = _getOccasionKey().toLowerCase();
+    candidates.sort((a, b) {
+      final aMatches = a.styles.any((s) =>
+          s.value.toLowerCase().contains(occasionKey) ||
+          occasionKey.contains(s.value.toLowerCase()));
+      final bMatches = b.styles.any((s) =>
+          s.value.toLowerCase().contains(occasionKey) ||
+          occasionKey.contains(s.value.toLowerCase()));
+      if (aMatches && !bMatches) return -1;
+      if (!aMatches && bMatches) return 1;
+      return b.createdAt.compareTo(a.createdAt);
+    });
 
     showModalBottomSheet(
       context: context,

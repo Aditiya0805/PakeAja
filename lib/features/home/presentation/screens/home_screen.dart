@@ -107,9 +107,22 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final user = ref.watch(userDataProvider).value;
-    final clothes = ref.watch(clothesListProvider).value ?? [];
+    final user = ref.watch(userDataProvider).valueOrNull;
+    final clothes = ref.watch(clothesListProvider).valueOrNull ?? [];
     final recState = ref.watch(recommendationProvider);
+
+    // Otomatis buat rekomendasi jika pakaian sudah cukup dan rekomendasi masih kosong
+    if (_hasEnoughClothes(clothes) &&
+        recState.recommendation == null &&
+        !recState.isLoading) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted &&
+            ref.read(recommendationProvider).recommendation == null &&
+            !ref.read(recommendationProvider).isLoading) {
+          ref.read(recommendationProvider.notifier).recommend(_selectedOccasion);
+        }
+      });
+    }
 
     final greeting = _getGreeting();
     final userName = user?.name.split(' ').first ?? 'Sarah';
@@ -694,14 +707,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 color: const Color(0xFFE2F7EB),
                 borderRadius: BorderRadius.circular(20),
               ),
-              child: const Row(
+              child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(Icons.circle, size: 7, color: Color(0xFF1E8E3E)),
-                  SizedBox(width: 5),
+                  const Icon(Icons.circle, size: 7, color: Color(0xFF1E8E3E)),
+                  const SizedBox(width: 5),
                   Text(
-                    '98% Cocok',
-                    style: TextStyle(
+                    '${recState.recommendation != null ? recState.recommendation!.score.round() : 98}% Cocok',
+                    style: const TextStyle(
                       fontSize: 11.5,
                       fontWeight: FontWeight.bold,
                       color: Color(0xFF167C37),

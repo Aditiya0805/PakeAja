@@ -13,9 +13,9 @@ import '../../wardrobe/providers/wardrobe_provider.dart'
 // ==================== CLOTHES FOR RECOMMENDATION ====================
 final clothesForRecommendationProvider =
     Provider.autoDispose<List<ClothModel>>((ref) {
-  final user = ref.watch(authStateProvider).value;
+  final user = ref.watch(authStateProvider).valueOrNull;
   if (user == null) return [];
-  return ref.watch(clothesListProvider).value ?? [];
+  return ref.watch(clothesListProvider).valueOrNull ?? [];
 });
 
 // ==================== RECOMMENDATION STATE ====================
@@ -48,9 +48,29 @@ final recommendationProvider = StateNotifierProvider<RecommendationNotifier,
 
 class RecommendationNotifier extends StateNotifier<RecommendationState> {
   final Ref _ref;
-  RecommendationNotifier(this._ref) : super(const RecommendationState());
+  String _currentOccasion = 'Kuliah';
+
+  RecommendationNotifier(this._ref) : super(const RecommendationState()) {
+    // Dengarkan perubahan pada daftar pakaian untuk rekomendasi secara reaktif
+    _ref.listen<List<ClothModel>>(clothesForRecommendationProvider, (prev, next) {
+      if (next.isNotEmpty) {
+        // Jika belum ada rekomendasi, atau sebelumnya error karena belum cukup pakaian saat loading awal
+        if (state.recommendation == null || state.error == 'Belum cukup') {
+          recommend(_currentOccasion);
+        } else {
+          // Atau jika ada item rekomendasi saat ini yang sudah tidak ada lagi di lemari (misal dihapus)
+          final currentIds = state.recommendation!.itemIds;
+          final nextIds = next.map((c) => c.id).toSet();
+          if (!currentIds.every((id) => nextIds.contains(id))) {
+            recommend(_currentOccasion);
+          }
+        }
+      }
+    });
+  }
 
   Future<void> recommend(String occasion) async {
+    _currentOccasion = occasion;
     state = state.copyWith(isLoading: true, error: null);
     try {
       final clothes = _ref.read(clothesForRecommendationProvider);
@@ -63,7 +83,7 @@ class RecommendationNotifier extends StateNotifier<RecommendationState> {
       }
 
       // Ambil excluded IDs dari riwayat agar berbeda
-      final history = _ref.read(outfitHistoryProvider).value ?? [];
+      final history = _ref.read(outfitHistoryProvider).valueOrNull ?? [];
       final recentIds = <String>{};
       for (final o in history.take(3)) {
         recentIds.addAll(o.itemIds);
@@ -83,13 +103,21 @@ class RecommendationNotifier extends StateNotifier<RecommendationState> {
 
   /// Acak ulang: rekomendasi alternatif
   Future<void> reshuffle(String occasion) async {
+    _currentOccasion = occasion;
     final current = state.recommendation;
-    if (current == null) return;
+    if (current == null) {
+      return recommend(occasion);
+    }
 
-    state = state.copyWith(isLoading: true);
+    state = state.copyWith(isLoading: true, error: null);
     try {
       final clothes = _ref.read(clothesForRecommendationProvider);
       final service = _ref.read(recommendationServiceProvider);
+
+      if (!service.canRecommend(clothes)) {
+        state = state.copyWith(isLoading: false, error: 'Belum cukup');
+        return;
+      }
 
       final excluded = <String>[...current.itemIds];
 
