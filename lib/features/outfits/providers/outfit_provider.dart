@@ -128,6 +128,101 @@ class WearOutfitNotifier extends AsyncNotifier<void> {
   }
 }
 
+// ==================== SCHEDULE OUTFIT ====================
+final scheduleOutfitProvider =
+    AsyncNotifierProvider<ScheduleOutfitNotifier, void>(
+        ScheduleOutfitNotifier.new);
+
+class ScheduleOutfitNotifier extends AsyncNotifier<void> {
+  @override
+  FutureOr<void> build() {}
+
+  /// Menjadwalkan outfit ke tanggal tertentu secara real-time
+  Future<bool> scheduleOutfit({
+    required String outfitId,
+    required DateTime date,
+  }) async {
+    state = const AsyncValue.loading();
+    try {
+      final user = ref.read(authStateProvider).valueOrNull;
+      if (user == null) {
+        state = AsyncValue.error('Kamu belum login', StackTrace.current);
+        return false;
+      }
+
+      await ref.read(outfitRepositoryProvider).markAsWorn(
+            uid: user.uid,
+            outfitId: outfitId,
+            wornAt: date,
+          );
+
+      state = const AsyncValue.data(null);
+      return true;
+    } on Exception catch (e) {
+      state = AsyncValue.error(ErrorHandler.handle(e), StackTrace.current);
+      return false;
+    }
+  }
+
+  /// Menghapus jadwal outfit pada tanggal tertentu
+  Future<bool> unscheduleOutfit({
+    required String outfitId,
+    required DateTime date,
+  }) async {
+    state = const AsyncValue.loading();
+    try {
+      final user = ref.read(authStateProvider).valueOrNull;
+      if (user == null) return false;
+
+      await ref.read(outfitRepositoryProvider).removeWornDate(
+            uid: user.uid,
+            outfitId: outfitId,
+            date: date,
+          );
+
+      state = const AsyncValue.data(null);
+      return true;
+    } on Exception catch (e) {
+      state = AsyncValue.error(ErrorHandler.handle(e), StackTrace.current);
+      return false;
+    }
+  }
+
+  /// Membuat outfit baru dan langsung menjadwalkannya ke tanggal tertentu
+  Future<bool> createAndScheduleOutfit({
+    required List<String> itemIds,
+    required String occasion,
+    required DateTime date,
+    bool isFavorite = true,
+  }) async {
+    state = const AsyncValue.loading();
+    try {
+      final user = ref.read(authStateProvider).valueOrNull;
+      if (user == null) return false;
+
+      final outfit = OutfitModel(
+        id: '',
+        itemIds: itemIds,
+        occasion: occasion,
+        isFavorite: isFavorite,
+        wornDates: [date],
+        createdAt: DateTime.now(),
+      );
+
+      await ref.read(outfitRepositoryProvider).addOutfit(
+            uid: user.uid,
+            outfit: outfit,
+          );
+
+      state = const AsyncValue.data(null);
+      return true;
+    } on Exception catch (e) {
+      state = AsyncValue.error(ErrorHandler.handle(e), StackTrace.current);
+      return false;
+    }
+  }
+}
+
 // ==================== TOGGLE FAVORITE ====================
 final toggleFavoriteProvider =
     AsyncNotifierProvider<ToggleFavoriteNotifier, void>(

@@ -39,9 +39,16 @@ class DateFormatter {
     return format(date);
   }
 
+  static String formatFullDate(DateTime? date) {
+    if (date == null) return '-';
+    try {
+      return DateFormat('EEEE, d MMMM yyyy', 'id_ID').format(date);
+    } catch (_) {
+      return '${date.day}/${date.month}/${date.year}';
+    }
+  }
+
   static String timestampToId() {
     return DateTime.now().millisecondsSinceEpoch.toString();
   }
-
-  static formatDate(DateTime day) {}
 }

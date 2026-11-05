@@ -187,7 +187,7 @@ class OutfitRepository {
     }
   }
 
-  /// Mencatat outfit dipakai hari ini
+  /// Mencatat outfit dipakai / direncanakan pada tanggal tertentu
   Future<void> markAsWorn({
     required String uid,
     required String outfitId,
@@ -197,6 +197,30 @@ class OutfitRepository {
       await _outfitsRef(uid).doc(outfitId).update({
         'wornDates': FieldValue.arrayUnion([Timestamp.fromDate(wornAt)]),
       });
+    } on Exception catch (e) {
+      throw Exception(ErrorHandler.handle(e));
+    }
+  }
+
+  /// Menghapus tanggal rencana / pemakaian dari outfit
+  Future<void> removeWornDate({
+    required String uid,
+    required String outfitId,
+    required DateTime date,
+  }) async {
+    try {
+      final doc = await _outfitsRef(uid).doc(outfitId).get();
+      if (!doc.exists) return;
+      final data = doc.data() as Map<String, dynamic>? ?? {};
+      final rawDates = (data['wornDates'] as List<dynamic>?) ?? [];
+      final updated = rawDates.where((d) {
+        if (d is Timestamp) {
+          final dt = d.toDate();
+          return !(dt.year == date.year && dt.month == date.month && dt.day == date.day);
+        }
+        return true;
+      }).toList();
+      await _outfitsRef(uid).doc(outfitId).update({'wornDates': updated});
     } on Exception catch (e) {
       throw Exception(ErrorHandler.handle(e));
     }

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:intl/date_symbol_data_local.dart';
 import 'package:pakeaja/data/models/cloth_model.dart';
 import 'package:pakeaja/data/models/outfit_model.dart';
 import 'package:pakeaja/features/outfits/presentation/screens/favorites_history_screen.dart';
@@ -8,6 +9,10 @@ import 'package:pakeaja/features/outfits/providers/outfit_provider.dart';
 import 'package:pakeaja/features/wardrobe/providers/wardrobe_provider.dart';
 
 void main() {
+  setUpAll(() async {
+    await initializeDateFormatting('id_ID', null);
+  });
+
   testWidgets('FavoritesHistoryScreen renders correctly when empty', (tester) async {
     await tester.pumpWidget(
       ProviderScope(
@@ -26,6 +31,7 @@ void main() {
     expect(find.text('Outfit Favorit'), findsOneWidget);
     expect(find.text('KOLEKSI TERKURASI'), findsOneWidget);
     expect(find.text('Rencana Minggu Ini'), findsOneWidget);
+    expect(find.text('0/7 Outfit Terjadwal'), findsOneWidget);
     expect(find.text('Lookbook Pilihan'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
@@ -50,14 +56,15 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('FavoritesHistoryScreen renders lookbook cards when data is available', (tester) async {
+  testWidgets('FavoritesHistoryScreen renders lookbook cards and reflects real-time scheduled count', (tester) async {
+    final today = DateTime.now();
     final mockOutfit = OutfitModel(
       id: 'outfit_1',
       itemIds: ['cloth_1'],
       occasion: 'Kuliah Pagi',
       isFavorite: true,
-      wornDates: [DateTime.now()],
-      createdAt: DateTime.now(),
+      wornDates: [today],
+      createdAt: today,
     );
 
     final mockCloth = ClothModel(
@@ -68,7 +75,7 @@ void main() {
       styles: const [ClothStyle.casual],
       weather: ClothWeather.cool,
       imageUrl: '',
-      createdAt: DateTime.now(),
+      createdAt: today,
     );
 
     await tester.pumpWidget(
@@ -87,6 +94,16 @@ void main() {
     await tester.pump();
     expect(find.text('Outfit Favorit'), findsOneWidget);
     expect(find.text('Kuliah Pagi'), findsOneWidget);
+    // Real-time scheduled count: 1/7
+    expect(find.text('1/7 Outfit Terjadwal'), findsOneWidget);
     expect(tester.takeException(), isNull);
+
+    // Tap on the day to open the agenda bottom sheet
+    await tester.tap(find.text('${today.day}').first);
+    await tester.pumpAndSettle();
+
+    // Verify bottom sheet opened with scheduled outfit details
+    expect(find.text('Kuliah Pagi'), findsWidgets);
+    expect(find.text('Ganti Outfit'), findsOneWidget);
   });
 }

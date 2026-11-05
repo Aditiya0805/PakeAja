@@ -34,8 +34,30 @@ class _FavoritesHistoryScreenState extends ConsumerState<FavoritesHistoryScreen>
 
   List<DateTime> _getCurrentWeekDays() {
     final now = DateTime.now();
-    final monday = now.subtract(Duration(days: now.weekday - 1));
+    final today = DateTime(now.year, now.month, now.day);
+    final monday = today.subtract(Duration(days: today.weekday - 1));
     return List.generate(7, (i) => monday.add(Duration(days: i)));
+  }
+
+  bool _isSameDay(DateTime a, DateTime b) {
+    return a.year == b.year && a.month == b.month && a.day == b.day;
+  }
+
+  List<OutfitModel> _getOutfitsForDay(
+    DateTime day,
+    List<OutfitModel> historyOutfits,
+    List<OutfitModel> allFavorites,
+  ) {
+    final combined = <String, OutfitModel>{};
+    for (final o in historyOutfits) {
+      combined[o.id] = o;
+    }
+    for (final o in allFavorites) {
+      combined[o.id] = o;
+    }
+    return combined.values
+        .where((o) => o.wornDates.any((d) => _isSameDay(d, day)))
+        .toList();
   }
 
   String _formatSavedTime(DateTime dt) {
@@ -135,7 +157,11 @@ class _FavoritesHistoryScreenState extends ConsumerState<FavoritesHistoryScreen>
                 child: Padding(
                   padding: const EdgeInsets.only(
                       left: 20, right: 20, top: 16, bottom: 8),
-                  child: _buildHeader(),
+                  child: _buildHeader(
+                    allFavorites: allFavorites,
+                    historyOutfits: historyOutfits,
+                    clothes: clothes,
+                  ),
                 ),
               ),
 
@@ -197,7 +223,11 @@ class _FavoritesHistoryScreenState extends ConsumerState<FavoritesHistoryScreen>
               SliverToBoxAdapter(
                 child: Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 20),
-                  child: _buildWeeklyPlannerCard(historyOutfits),
+                  child: _buildWeeklyPlannerCard(
+                    historyOutfits: historyOutfits,
+                    allFavorites: allFavorites,
+                    clothes: clothes,
+                  ),
                 ),
               ),
               const SliverToBoxAdapter(child: SizedBox(height: 22)),
@@ -255,7 +285,11 @@ class _FavoritesHistoryScreenState extends ConsumerState<FavoritesHistoryScreen>
   }
 
   // ==================== 1. HEADER ====================
-  Widget _buildHeader() {
+  Widget _buildHeader({
+    required List<OutfitModel> allFavorites,
+    required List<OutfitModel> historyOutfits,
+    required List<ClothModel> clothes,
+  }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -311,7 +345,11 @@ class _FavoritesHistoryScreenState extends ConsumerState<FavoritesHistoryScreen>
                 const SizedBox(width: 8),
                 // Tombol + Koleksi
                 GestureDetector(
-                  onTap: _showCreateCollectionModal,
+                  onTap: () => _showCreateCollectionModal(
+                    allFavorites: allFavorites,
+                    historyOutfits: historyOutfits,
+                    clothes: clothes,
+                  ),
                   child: Container(
                     height: 40,
                     padding: const EdgeInsets.symmetric(horizontal: 14),
@@ -427,26 +465,22 @@ class _FavoritesHistoryScreenState extends ConsumerState<FavoritesHistoryScreen>
   }
 
   // ==================== 3. RENCANA MINGGU INI ====================
-  Widget _buildWeeklyPlannerCard(List<OutfitModel> historyOutfits) {
+  Widget _buildWeeklyPlannerCard({
+    required List<OutfitModel> historyOutfits,
+    required List<OutfitModel> allFavorites,
+    required List<ClothModel> clothes,
+  }) {
     final weekDays = _getCurrentWeekDays();
     final dayNames = ['Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab', 'Min'];
+    final now = DateTime.now();
 
-    // Ambil tanggal-tanggal yang pernah ada outfit terjadwal/dipakai
-    final wornDayNumbers = <int>{};
-    for (final o in historyOutfits) {
-      for (final d in o.wornDates) {
-        wornDayNumbers.add(d.day);
+    // Hitung berapa hari dalam minggu ini yang memiliki outfit terjadwal secara real-time
+    int scheduledCount = 0;
+    for (final day in weekDays) {
+      if (_getOutfitsForDay(day, historyOutfits, allFavorites).isNotEmpty) {
+        scheduledCount++;
       }
     }
-    // Jika masih kosong untuk minggu ini, beri tanggal dummy seperti pada desain (14 dan 16)
-    if (wornDayNumbers.isEmpty) {
-      if (weekDays.isNotEmpty) {
-        wornDayNumbers.add(weekDays[0].day); // Hari Senin
-        if (weekDays.length > 2) wornDayNumbers.add(weekDays[2].day); // Hari Rabu
-      }
-    }
-
-    final scheduledCount = wornDayNumbers.length.clamp(0, 7);
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -464,7 +498,7 @@ class _FavoritesHistoryScreenState extends ConsumerState<FavoritesHistoryScreen>
       ),
       child: Column(
         children: [
-          // Header: Rencana Minggu Ini & Badge Aktif
+          // Header: Rencana Minggu Ini & Badge Status
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -510,15 +544,19 @@ class _FavoritesHistoryScreenState extends ConsumerState<FavoritesHistoryScreen>
                 padding:
                     const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFE2F7EB),
+                  color: scheduledCount > 0
+                      ? const Color(0xFFE2F7EB)
+                      : const Color(0xFFF4F5F7),
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: const Text(
-                  'Aktif',
+                child: Text(
+                  scheduledCount > 0 ? 'Aktif' : 'Atur Jadwal',
                   style: TextStyle(
                     fontSize: 11,
                     fontWeight: FontWeight.bold,
-                    color: Color(0xFF167C37),
+                    color: scheduledCount > 0
+                        ? const Color(0xFF167C37)
+                        : const Color(0xFF757575),
                   ),
                 ),
               ),
@@ -526,16 +564,24 @@ class _FavoritesHistoryScreenState extends ConsumerState<FavoritesHistoryScreen>
           ),
           const SizedBox(height: 16),
 
-          // Baris 7 Hari Kalender (Sen, Sel, Rab, Kam, Jum, Sab, Min)
+          // Baris 7 Hari Kalender (Sen, Sel, Rab, Kam, Jum, Sab, Min) mengikuti tanggal real
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: List.generate(7, (index) {
               final day = weekDays[index];
               final dayName = dayNames[index];
-              final isScheduled = wornDayNumbers.contains(day.day);
+              final dayOutfits =
+                  _getOutfitsForDay(day, historyOutfits, allFavorites);
+              final isScheduled = dayOutfits.isNotEmpty;
+              final isToday = _isSameDay(day, now);
 
               return GestureDetector(
-                onTap: () => _onDayTapped(day, isScheduled),
+                onTap: () => _onDayTapped(
+                  day: day,
+                  dayOutfits: dayOutfits,
+                  allFavorites: allFavorites,
+                  clothes: clothes,
+                ),
                 child: AnimatedContainer(
                   duration: const Duration(milliseconds: 200),
                   width: 42,
@@ -543,13 +589,17 @@ class _FavoritesHistoryScreenState extends ConsumerState<FavoritesHistoryScreen>
                   decoration: BoxDecoration(
                     color: isScheduled
                         ? const Color(0xFFFFF4F4)
-                        : const Color(0xFFF7F8FA),
+                        : (isToday
+                            ? const Color(0xFFF0F4FF)
+                            : const Color(0xFFF7F8FA)),
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(
                       color: isScheduled
                           ? const Color(0xFFFAD1D1)
-                          : Colors.transparent,
-                      width: 1,
+                          : (isToday
+                              ? const Color(0xFFB8CEF8)
+                              : Colors.transparent),
+                      width: isToday ? 1.5 : 1,
                     ),
                   ),
                   child: Column(
@@ -559,10 +609,13 @@ class _FavoritesHistoryScreenState extends ConsumerState<FavoritesHistoryScreen>
                         dayName,
                         style: TextStyle(
                           fontSize: 11,
-                          fontWeight: FontWeight.w500,
+                          fontWeight:
+                              isToday ? FontWeight.bold : FontWeight.w500,
                           color: isScheduled
                               ? const Color(0xFF8E959E)
-                              : const Color(0xFF757575),
+                              : (isToday
+                                  ? const Color(0xFF1976D2)
+                                  : const Color(0xFF757575)),
                         ),
                       ),
                       const SizedBox(height: 4),
@@ -573,7 +626,9 @@ class _FavoritesHistoryScreenState extends ConsumerState<FavoritesHistoryScreen>
                           fontWeight: FontWeight.bold,
                           color: isScheduled
                               ? AppTheme.primaryColor
-                              : const Color(0xFF1E2022),
+                              : (isToday
+                                  ? const Color(0xFF1976D2)
+                                  : const Color(0xFF1E2022)),
                         ),
                       ),
                       const SizedBox(height: 3),
@@ -583,6 +638,15 @@ class _FavoritesHistoryScreenState extends ConsumerState<FavoritesHistoryScreen>
                           height: 5,
                           decoration: const BoxDecoration(
                             color: AppTheme.primaryColor,
+                            shape: BoxShape.circle,
+                          ),
+                        )
+                      else if (isToday)
+                        Container(
+                          width: 4,
+                          height: 4,
+                          decoration: const BoxDecoration(
+                            color: Color(0xFF1976D2),
                             shape: BoxShape.circle,
                           ),
                         )
@@ -1070,7 +1134,11 @@ class _FavoritesHistoryScreenState extends ConsumerState<FavoritesHistoryScreen>
     );
   }
 
-  void _showCreateCollectionModal() {
+  void _showCreateCollectionModal({
+    required List<OutfitModel> allFavorites,
+    required List<OutfitModel> historyOutfits,
+    required List<ClothModel> clothes,
+  }) {
     showModalBottomSheet(
       context: context,
       shape: const RoundedRectangleBorder(
@@ -1085,12 +1153,12 @@ class _FavoritesHistoryScreenState extends ConsumerState<FavoritesHistoryScreen>
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const Text(
-                  'Tambah Koleksi Favorit',
+                  'Tambah Koleksi & Rencana',
                   style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 6),
                 const Text(
-                  'Pilih cara menambahkan lookbook ke daftar favorit kamu:',
+                  'Pilih aksi untuk lookbook atau jadwal pakaian kamu:',
                   style: TextStyle(fontSize: 13, color: Color(0xFF757575)),
                 ),
                 const SizedBox(height: 16),
@@ -1110,7 +1178,34 @@ class _FavoritesHistoryScreenState extends ConsumerState<FavoritesHistoryScreen>
                   subtitle: const Text('Simpan kombinasi serasi pilihan AI'),
                   onTap: () {
                     Navigator.pop(context);
-                    context.push('/recommendation');
+                    this.context.push('/recommendation');
+                  },
+                ),
+                const SizedBox(height: 6),
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: const BoxDecoration(
+                      color: Color(0xFFE2F7EB),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(Icons.calendar_month_rounded,
+                        color: Color(0xFF1E8E3E)),
+                  ),
+                  title: const Text('Jadwalkan Rencana Hari Ini',
+                      style: TextStyle(fontWeight: FontWeight.bold)),
+                  subtitle: const Text('Tentukan outfit untuk agenda kalender'),
+                  onTap: () {
+                    Navigator.pop(context);
+                    final now = DateTime.now();
+                    _onDayTapped(
+                      day: now,
+                      dayOutfits:
+                          _getOutfitsForDay(now, historyOutfits, allFavorites),
+                      allFavorites: allFavorites,
+                      clothes: clothes,
+                    );
                   },
                 ),
                 const SizedBox(height: 8),
@@ -1122,57 +1217,605 @@ class _FavoritesHistoryScreenState extends ConsumerState<FavoritesHistoryScreen>
     );
   }
 
-  void _onDayTapped(DateTime day, bool isScheduled) {
+  void _onDayTapped({
+    required DateTime day,
+    required List<OutfitModel> dayOutfits,
+    required List<OutfitModel> allFavorites,
+    required List<ClothModel> clothes,
+  }) {
+    final isToday = _isSameDay(day, DateTime.now());
+    final dayLabel = DateFormatter.formatFullDate(day);
+
     showModalBottomSheet(
       context: context,
+      isScrollControlled: true,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      builder: (context) {
+      builder: (bottomSheetContext) {
+        final hasOutfit = dayOutfits.isNotEmpty;
+
         return SafeArea(
           child: Padding(
-            padding: const EdgeInsets.all(20),
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  'Agenda ${DateFormatter.format(day)}',
-                  style: const TextStyle(
-                      fontSize: 17, fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  isScheduled
-                      ? 'Ada outfit yang dijadwalkan / dipakai pada hari ini.'
-                      : 'Belum ada outfit terjadwal untuk hari ini.',
-                  style:
-                      const TextStyle(fontSize: 13, color: Color(0xFF757575)),
-                ),
-                const SizedBox(height: 16),
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    onPressed: () {
-                      Navigator.pop(context);
-                      context.push('/recommendation');
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppTheme.primaryColor,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10),
-                      ),
+                Center(
+                  child: Container(
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFE0E0E0),
+                      borderRadius: BorderRadius.circular(2),
                     ),
-                    child: const Text('Pilih Outfit untuk Hari Ini',
-                        style: TextStyle(color: Colors.white)),
                   ),
                 ),
+                const SizedBox(height: 16),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            dayLabel,
+                            style: const TextStyle(
+                              fontSize: 17,
+                              fontWeight: FontWeight.bold,
+                              color: AppTheme.textPrimary,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            hasOutfit
+                                ? 'Ada ${dayOutfits.length} outfit terjadwal untuk hari ini'
+                                : 'Belum ada outfit terjadwal untuk hari ini',
+                            style: const TextStyle(
+                              fontSize: 12.5,
+                              color: Color(0xFF757575),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    if (isToday)
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 9, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFE3F2FD),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: const Text(
+                          'Hari Ini',
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFF1976D2),
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 18),
+
+                if (hasOutfit) ...[
+                  for (final outfit in dayOutfits) ...[
+                    _buildScheduledOutfitItem(
+                      outfit: outfit,
+                      day: day,
+                      clothes: clothes,
+                      allFavorites: allFavorites,
+                      parentContext: bottomSheetContext,
+                    ),
+                    const SizedBox(height: 10),
+                  ],
+                ] else ...[
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(20),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF9FAFB),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: const Color(0xFFEEF0F2)),
+                    ),
+                    child: Column(
+                      children: [
+                        Container(
+                          width: 48,
+                          height: 48,
+                          decoration: const BoxDecoration(
+                            color: Color(0xFFFFF4F4),
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(
+                            Icons.calendar_today_rounded,
+                            color: AppTheme.primaryColor,
+                            size: 22,
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        const Text(
+                          'Mau pakai apa di hari ini?',
+                          style: TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.bold,
+                            color: AppTheme.textPrimary,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        const Text(
+                          'Pilih dari koleksi favorit kamu atau racik padu-padan baru dengan AI.',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontSize: 12.5,
+                            color: Color(0xFF757575),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 46,
+                    child: ElevatedButton.icon(
+                      onPressed: () {
+                        Navigator.pop(bottomSheetContext);
+                        _showPickFavoriteForDaySheet(
+                          day: day,
+                          allFavorites: allFavorites,
+                          clothes: clothes,
+                        );
+                      },
+                      icon: const Icon(Icons.favorite_rounded,
+                          size: 18, color: Colors.white),
+                      label: const Text('Pilih dari Outfit Favorit',
+                          style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white)),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppTheme.primaryColor,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 46,
+                    child: OutlinedButton.icon(
+                      onPressed: () {
+                        Navigator.pop(bottomSheetContext);
+                        context.push('/recommendation');
+                      },
+                      icon: const Icon(Icons.auto_awesome_rounded,
+                          size: 18, color: AppTheme.primaryColor),
+                      label: const Text('Racik dengan AI Rekomendasi',
+                          style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: AppTheme.primaryColor)),
+                      style: OutlinedButton.styleFrom(
+                        side: const BorderSide(color: Color(0xFFE0E0E0)),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               ],
             ),
           ),
         );
       },
     );
+  }
+
+  Widget _buildScheduledOutfitItem({
+    required OutfitModel outfit,
+    required DateTime day,
+    required List<ClothModel> clothes,
+    required List<OutfitModel> allFavorites,
+    required BuildContext parentContext,
+  }) {
+    final items = _resolveItems(outfit, clothes);
+    final title = _getLookbookTitle(outfit, items);
+
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF9FAFB),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFEEF0F2)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: AppTheme.primaryColor.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  outfit.occasion,
+                  style: const TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
+                    color: AppTheme.primaryColor,
+                  ),
+                ),
+              ),
+              const Spacer(),
+              IconButton(
+                icon: const Icon(Icons.delete_outline_rounded,
+                    size: 20, color: AppTheme.errorColor),
+                tooltip: 'Hapus Rencana',
+                onPressed: () async {
+                  final messenger = ScaffoldMessenger.of(context);
+                  Navigator.pop(parentContext);
+                  await ref
+                      .read(scheduleOutfitProvider.notifier)
+                      .unscheduleOutfit(outfitId: outfit.id, date: day);
+                  messenger.showSnackBar(
+                    SnackBar(
+                      content: Text(
+                          'Rencana outfit untuk ${DateFormatter.format(day)} telah dihapus.'),
+                      backgroundColor: AppTheme.textPrimary,
+                    ),
+                  );
+                },
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Text(
+            title,
+            style: const TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.bold,
+              color: AppTheme.textPrimary,
+            ),
+          ),
+          const SizedBox(height: 10),
+          SizedBox(
+            height: 60,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              itemCount: items.length,
+              separatorBuilder: (_, __) => const SizedBox(width: 8),
+              itemBuilder: (context, idx) {
+                final it = items[idx];
+                return ClipRRect(
+                  borderRadius: BorderRadius.circular(8),
+                  child: Container(
+                    width: 60,
+                    height: 60,
+                    color: Colors.white,
+                    child: ClothImageView(
+                      imageUrl: it.imageUrl,
+                      fit: BoxFit.cover,
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton(
+                  onPressed: () {
+                    Navigator.pop(parentContext);
+                    _showPickFavoriteForDaySheet(
+                      day: day,
+                      allFavorites: allFavorites,
+                      clothes: clothes,
+                    );
+                  },
+                  style: OutlinedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 10),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
+                  child: const Text('Ganti Outfit',
+                      style: TextStyle(fontSize: 12.5)),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: ElevatedButton(
+                  onPressed: () async {
+                    final messenger = ScaffoldMessenger.of(context);
+                    Navigator.pop(parentContext);
+                    await ref.read(wearOutfitProvider.notifier).wearOutfit(
+                          itemIds: outfit.itemIds,
+                          occasion: outfit.occasion,
+                        );
+                    messenger.showSnackBar(
+                      const SnackBar(
+                        content: Text('Outfit tercatat dipakai hari ini!'),
+                        backgroundColor: AppTheme.successColor,
+                      ),
+                    );
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppTheme.primaryColor,
+                    padding: const EdgeInsets.symmetric(vertical: 10),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
+                  child: const Text('Pakai Outfit Ini',
+                      style: TextStyle(fontSize: 12.5, color: Colors.white)),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showPickFavoriteForDaySheet({
+    required DateTime day,
+    required List<OutfitModel> allFavorites,
+    required List<ClothModel> clothes,
+  }) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (bottomSheetContext) {
+        return SafeArea(
+          child: Container(
+            constraints: BoxConstraints(
+              maxHeight: MediaQuery.of(context).size.height * 0.75,
+            ),
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: Container(
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFE0E0E0),
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  'Pilih Outfit untuk ${DateFormatter.formatFullDate(day)}',
+                  style: const TextStyle(
+                    fontSize: 16.5,
+                    fontWeight: FontWeight.bold,
+                    color: AppTheme.textPrimary,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                const Text(
+                  'Ketuk outfit untuk memasukkannya ke rencana hari ini.',
+                  style: TextStyle(fontSize: 12.5, color: Color(0xFF757575)),
+                ),
+                const SizedBox(height: 16),
+                if (allFavorites.isEmpty) ...[
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 30),
+                    child: Center(
+                      child: Column(
+                        children: [
+                          const Icon(Icons.favorite_border_rounded,
+                              size: 44, color: Color(0xFFBDBDBD)),
+                          const SizedBox(height: 10),
+                          const Text(
+                            'Belum ada outfit favorit tersimpan.',
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.bold,
+                              color: AppTheme.textPrimary,
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          ElevatedButton(
+                            onPressed: () {
+                              Navigator.pop(bottomSheetContext);
+                              context.push('/recommendation');
+                            },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppTheme.primaryColor,
+                            ),
+                            child: const Text('Buat di Rekomendasi',
+                                style: TextStyle(color: Colors.white)),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ] else ...[
+                  Expanded(
+                    child: ListView.separated(
+                      itemCount: allFavorites.length,
+                      separatorBuilder: (_, __) => const SizedBox(height: 12),
+                      itemBuilder: (context, idx) {
+                        final fav = allFavorites[idx];
+                        final items = _resolveItems(fav, clothes);
+                        final title = _getLookbookTitle(fav, items);
+
+                        return Container(
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(color: const Color(0xFFEEF0F2)),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withValues(alpha: 0.02),
+                                blurRadius: 4,
+                                offset: const Offset(0, 1),
+                              ),
+                            ],
+                          ),
+                          child: Material(
+                            color: Colors.transparent,
+                            borderRadius: BorderRadius.circular(14),
+                            child: InkWell(
+                              borderRadius: BorderRadius.circular(14),
+                              onTap: () async {
+                                final messenger = ScaffoldMessenger.of(context);
+                                Navigator.pop(bottomSheetContext);
+                                await ref
+                                    .read(scheduleOutfitProvider.notifier)
+                                    .scheduleOutfit(
+                                      outfitId: fav.id,
+                                      date: day,
+                                    );
+                                messenger.showSnackBar(
+                                  SnackBar(
+                                    content: Text(
+                                      'Outfit "$title" berhasil dijadwalkan untuk ${DateFormatter.format(day)}!',
+                                    ),
+                                    backgroundColor: AppTheme.successColor,
+                                  ),
+                                );
+                              },
+                              child: Padding(
+                                padding: const EdgeInsets.all(12),
+                                child: Row(
+                                  children: [
+                                    ClipRRect(
+                                      borderRadius: BorderRadius.circular(10),
+                                      child: Container(
+                                        width: 54,
+                                        height: 54,
+                                        color: const Color(0xFFF9FAFB),
+                                        child: items.isNotEmpty
+                                            ? ClothImageView(
+                                                imageUrl: items[0].imageUrl,
+                                                fit: BoxFit.contain,
+                                              )
+                                            : const Icon(
+                                                Icons.checkroom_outlined,
+                                                color: Color(0xFFBDBDBD),
+                                              ),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(
+                                                horizontal: 7, vertical: 2),
+                                            decoration: BoxDecoration(
+                                              color: const Color(0xFFF4F5F7),
+                                              borderRadius:
+                                                  BorderRadius.circular(6),
+                                            ),
+                                            child: Text(
+                                              fav.occasion,
+                                              style: const TextStyle(
+                                                fontSize: 10.5,
+                                                fontWeight: FontWeight.bold,
+                                                color: Color(0xFF4A5056),
+                                              ),
+                                            ),
+                                          ),
+                                          const SizedBox(height: 4),
+                                          Text(
+                                            title,
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: const TextStyle(
+                                              fontSize: 14,
+                                              fontWeight: FontWeight.bold,
+                                              color: AppTheme.textPrimary,
+                                            ),
+                                          ),
+                                          const SizedBox(height: 2),
+                                          Text(
+                                            '${items.length} item pakaian',
+                                            style: const TextStyle(
+                                              fontSize: 11.5,
+                                              color: Color(0xFF757575),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Container(
+                                      padding: const EdgeInsets.all(8),
+                                      decoration: const BoxDecoration(
+                                        color: Color(0xFFFFF4F4),
+                                        shape: BoxShape.circle,
+                                      ),
+                                      child: const Icon(
+                                        Icons.add_rounded,
+                                        color: AppTheme.primaryColor,
+                                        size: 20,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _scheduleOutfitToDate(OutfitModel outfit) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final now = DateTime.now();
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: now,
+      firstDate: now.subtract(const Duration(days: 30)),
+      lastDate: now.add(const Duration(days: 90)),
+      helpText: 'Pilih Tanggal Rencana Outfit',
+      confirmText: 'Jadwalkan',
+      cancelText: 'Batal',
+    );
+
+    if (picked != null) {
+      await ref
+          .read(scheduleOutfitProvider.notifier)
+          .scheduleOutfit(outfitId: outfit.id, date: picked);
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(
+            'Outfit berhasil dijadwalkan untuk ${DateFormatter.format(picked)}!',
+          ),
+          backgroundColor: AppTheme.successColor,
+        ),
+      );
+    }
   }
 
   void _showOutfitDetailSheet(OutfitModel outfit, List<ClothModel> items) {
@@ -1235,6 +1878,33 @@ class _FavoritesHistoryScreenState extends ConsumerState<FavoritesHistoryScreen>
                     },
                   ),
                 const SizedBox(height: 16),
+                // Tombol Jadwalkan ke Tanggal
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    onPressed: () {
+                      Navigator.pop(context);
+                      _scheduleOutfitToDate(outfit);
+                    },
+                    icon: const Icon(Icons.calendar_month_rounded,
+                        size: 18, color: AppTheme.primaryColor),
+                    label: const Text(
+                      'Jadwalkan ke Kalender Rencana',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: AppTheme.textPrimary,
+                      ),
+                    ),
+                    style: OutlinedButton.styleFrom(
+                      side: const BorderSide(color: Color(0xFFE0E0E0)),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 10),
                 // Tombol Aksi
                 Row(
                   children: [
