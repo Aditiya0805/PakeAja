@@ -57,9 +57,9 @@ class _WardrobeScreenState extends ConsumerState<WardrobeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final user = ref.watch(userDataProvider).value;
+    final user = ref.watch(userDataProvider).valueOrNull;
     final clothesState = ref.watch(clothesListProvider);
-    final allClothes = clothesState.value ?? [];
+    final allClothes = clothesState.valueOrNull ?? [];
     final filtered = ref.watch(filteredClothesProvider);
     final filter = ref.watch(clothFilterProvider);
 
@@ -1388,7 +1388,7 @@ class _WardrobeScreenState extends ConsumerState<WardrobeScreen> {
           FilledButton(
             onPressed: () async {
               Navigator.of(dialogContext).pop();
-              final user = ref.read(authStateProvider).value;
+              final user = ref.read(authStateProvider).valueOrNull;
               if (user == null) return;
 
               if (mounted) {

@@ -46,7 +46,8 @@ final routerProvider = Provider<GoRouter>((ref) {
       // Beri izin splash screen berjalan tanpa interupsi
       if (loc == '/splash') return null;
 
-      final user = ref.read(authStateProvider).value ?? authService.currentUser;
+      final user =
+          ref.read(authStateProvider).valueOrNull ?? authService.currentUser;
       final isLoggedIn = user != null;
       final isAuthRoute = loc == '/login' ||
           loc == '/register' ||

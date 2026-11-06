@@ -27,9 +27,9 @@ final userStatsProvider =
     return AsyncValue.error(clothesState.error!, clothesState.stackTrace!);
   }
 
-  final clothes = clothesState.value ?? [];
-  final favorites = favoritesState.value ?? [];
-  final history = historyState.value ?? [];
+  final clothes = clothesState.valueOrNull ?? [];
+  final favorites = favoritesState.valueOrNull ?? [];
+  final history = historyState.valueOrNull ?? [];
 
   int wornCount = 0;
   for (final o in history) {
@@ -54,7 +54,7 @@ class UpdateProfileNotifier extends AsyncNotifier<void> {
   Future<bool> updateName(String name) async {
     state = const AsyncValue.loading();
     try {
-      final user = ref.read(authStateProvider).value;
+      final user = ref.read(authStateProvider).valueOrNull;
       if (user == null) return false;
 
       await ref.read(userRepositoryProvider).updateUser(

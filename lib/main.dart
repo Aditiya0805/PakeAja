@@ -1,4 +1,5 @@
 import 'package:firebase_core/firebase_core.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -21,19 +22,22 @@ Future<void> main() async {
       );
     }
   } catch (e) {
-    // Tangani error duplicate-app saat hot restart
-    if (!e.toString().contains('duplicate-app')) {
+    debugPrint('Firebase init error: $e');
+    // Tangani error duplicate-app saat hot restart atau konfigurasi web belum siap
+    if (!e.toString().contains('duplicate-app') && !kIsWeb) {
       rethrow;
     }
   }
 
-  // Set status bar & navigation bar style
-  SystemChrome.setSystemUIOverlayStyle(
-    const SystemUiOverlayStyle(
-      statusBarColor: Colors.transparent,
-      statusBarIconBrightness: Brightness.dark,
-    ),
-  );
+  // Set status bar & navigation bar style (hanya di platform non-web)
+  if (!kIsWeb) {
+    SystemChrome.setSystemUIOverlayStyle(
+      const SystemUiOverlayStyle(
+        statusBarColor: Colors.transparent,
+        statusBarIconBrightness: Brightness.dark,
+      ),
+    );
+  }
 
   runApp(
     const ProviderScope(

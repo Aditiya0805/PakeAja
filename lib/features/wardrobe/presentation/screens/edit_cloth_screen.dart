@@ -41,7 +41,7 @@ class _EditClothScreenState extends ConsumerState<EditClothScreen> {
   }
 
   Future<void> _loadCloth() async {
-    final user = ref.read(authStateProvider).value;
+    final user = ref.read(authStateProvider).valueOrNull;
     if (user == null) return;
 
     final cloth = await ref
@@ -121,7 +121,7 @@ class _EditClothScreenState extends ConsumerState<EditClothScreen> {
 
   Future<void> _save() async {
     if (!_formKey.currentState!.validate()) return;
-    final user = ref.read(authStateProvider).value;
+    final user = ref.read(authStateProvider).valueOrNull;
     if (user == null) return;
 
     final data = <String, dynamic>{
@@ -178,7 +178,7 @@ class _EditClothScreenState extends ConsumerState<EditClothScreen> {
             style: FilledButton.styleFrom(backgroundColor: AppTheme.errorColor),
             onPressed: () async {
               Navigator.of(dialogContext).pop();
-              final user = ref.read(authStateProvider).value;
+              final user = ref.read(authStateProvider).valueOrNull;
               if (user == null) return;
 
               if (mounted) {

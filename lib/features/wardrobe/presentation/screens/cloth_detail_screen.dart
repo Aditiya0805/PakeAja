@@ -27,7 +27,7 @@ class _ClothDetailScreenState extends ConsumerState<ClothDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final user = ref.watch(authStateProvider).value;
+    final user = ref.watch(authStateProvider).valueOrNull;
     if (user == null) return const Scaffold();
 
     return Scaffold(
@@ -250,7 +250,7 @@ class _ClothDetailScreenState extends ConsumerState<ClothDetailScreen> {
           FilledButton(
             onPressed: () async {
               Navigator.of(dialogContext).pop();
-              final user = ref.read(authStateProvider).value;
+              final user = ref.read(authStateProvider).valueOrNull;
               if (user == null) return;
 
               if (mounted) {

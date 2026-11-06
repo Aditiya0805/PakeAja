@@ -86,7 +86,7 @@ class _AddClothScreenState extends ConsumerState<AddClothScreen> {
       return;
     }
 
-    final user = ref.read(authStateProvider).value;
+    final user = ref.read(authStateProvider).valueOrNull;
     if (user == null) return;
 
     final cloth = ClothModel(

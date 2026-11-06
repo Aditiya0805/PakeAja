@@ -14,7 +14,7 @@ final authStateProvider = StreamProvider<User?>((ref) {
 
 // ==================== USER DATA ====================
 final userDataProvider = StreamProvider.autoDispose<UserModel?>((ref) {
-  final user = ref.watch(authStateProvider).value;
+  final user = ref.watch(authStateProvider).valueOrNull;
   if (user == null) return Stream.value(null);
   return ref.watch(userRepositoryProvider).watchUser(user.uid);
 });

@@ -12,7 +12,7 @@ import 'package:pakeaja/features/auth/providers/auth_provider.dart'
 
 // ==================== CLOTHES LIST ====================
 final clothesListProvider = StreamProvider.autoDispose<List<ClothModel>>((ref) {
-  final user = ref.watch(authStateProvider).value;
+  final user = ref.watch(authStateProvider).valueOrNull;
   if (user == null) return Stream.value([]);
   return ref.watch(clothRepositoryProvider).watchClothes(user.uid);
 });
@@ -84,7 +84,7 @@ final clothFilterProvider =
 
 final filteredClothesProvider =
     Provider.autoDispose<List<ClothModel>>((ref) {
-  final clothes = ref.watch(clothesListProvider).value ?? [];
+  final clothes = ref.watch(clothesListProvider).valueOrNull ?? [];
   final filter = ref.watch(clothFilterProvider);
   final washingIds = ref.watch(washingClothIdsProvider);
   return clothes.where((c) => filter.matches(c, washingIds: washingIds)).toList();

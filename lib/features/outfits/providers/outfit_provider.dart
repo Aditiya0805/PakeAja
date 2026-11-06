@@ -46,7 +46,7 @@ class SaveOutfitNotifier extends AsyncNotifier<OutfitModel?> {
   }) async {
     state = const AsyncValue.loading();
     try {
-      final user = ref.read(authStateProvider).value;
+      final user = ref.read(authStateProvider).valueOrNull;
       if (user == null) {
         state = AsyncValue.error('Kamu belum login', StackTrace.current);
         return false;
@@ -89,7 +89,7 @@ class WearOutfitNotifier extends AsyncNotifier<void> {
   }) async {
     state = const AsyncValue.loading();
     try {
-      final user = ref.read(authStateProvider).value;
+      final user = ref.read(authStateProvider).valueOrNull;
       if (user == null) {
         state = AsyncValue.error('Kamu belum login', StackTrace.current);
         return false;
@@ -238,7 +238,7 @@ class ToggleFavoriteNotifier extends AsyncNotifier<void> {
   }) async {
     state = const AsyncValue.loading();
     try {
-      final user = ref.read(authStateProvider).value;
+      final user = ref.read(authStateProvider).valueOrNull;
       if (user == null) return false;
 
       await ref.read(outfitRepositoryProvider).toggleFavorite(
@@ -266,7 +266,7 @@ class DeleteOutfitNotifier extends AsyncNotifier<void> {
   Future<bool> deleteOutfit({required String outfitId}) async {
     state = const AsyncValue.loading();
     try {
-      final user = ref.read(authStateProvider).value;
+      final user = ref.read(authStateProvider).valueOrNull;
       if (user == null) return false;
 
       await ref

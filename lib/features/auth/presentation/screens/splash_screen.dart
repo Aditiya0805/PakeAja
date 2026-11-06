@@ -126,7 +126,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
     if (_navigated || !mounted) return;
     _navigated = true;
 
-    final user = ref.read(authStateProvider).value ??
+    final user = ref.read(authStateProvider).valueOrNull ??
         ref.read(authServiceProvider).currentUser;
 
     if (user != null) {

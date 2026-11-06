@@ -17,7 +17,7 @@ class ProfileScreen extends ConsumerStatefulWidget {
 class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   @override
   Widget build(BuildContext context) {
-    final user = ref.watch(userDataProvider).value;
+    final user = ref.watch(userDataProvider).valueOrNull;
     final stats = ref.watch(userStatsProvider);
 
     return Scaffold(
@@ -247,7 +247,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
   // ==================== 3. STATISTIK ====================
   Widget _buildStats(AsyncValue<Map<String, int>> stats) {
-    final data = stats.value ??
+    final data = stats.valueOrNull ??
         {'totalClothes': 0, 'totalFavorites': 0, 'totalWorn': 0};
 
     return Container(
@@ -582,7 +582,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   }
 
   Future<void> _showEditProfileDialog() async {
-    final user = ref.read(userDataProvider).value;
+    final user = ref.read(userDataProvider).valueOrNull;
     final nameController = TextEditingController(text: user?.name ?? '');
 
     final saved = await showDialog<bool>(
