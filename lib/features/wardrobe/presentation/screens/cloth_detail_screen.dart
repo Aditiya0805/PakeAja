@@ -1,6 +1,5 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-
-import 'package:pakeaja/core/widgets/cloth_image_view.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -8,10 +7,13 @@ import 'package:pakeaja/core/providers/service_providers.dart';
 import 'package:pakeaja/core/theme/app_theme.dart';
 import 'package:pakeaja/core/utils/date_formatter.dart';
 import 'package:pakeaja/core/utils/error_handler.dart';
+import 'package:pakeaja/core/widgets/cloth_image_view.dart';
 import 'package:pakeaja/core/widgets/custom_button.dart';
+import 'package:pakeaja/core/widgets/menu_hero_header.dart';
 import 'package:pakeaja/core/widgets/state_widgets.dart';
 import 'package:pakeaja/data/models/cloth_model.dart';
-import 'package:pakeaja/features/auth/providers/auth_provider.dart' show authStateProvider;
+import 'package:pakeaja/features/auth/providers/auth_provider.dart'
+    show authStateProvider;
 import 'package:pakeaja/features/wardrobe/providers/wardrobe_provider.dart';
 
 class ClothDetailScreen extends ConsumerStatefulWidget {
@@ -24,131 +26,248 @@ class ClothDetailScreen extends ConsumerStatefulWidget {
 }
 
 class _ClothDetailScreenState extends ConsumerState<ClothDetailScreen> {
-  ClothModel? _currentCloth;
+  ClothModel? _findCachedCloth() {
+    final clothes = ref.watch(clothesListProvider).valueOrNull ?? const [];
+    for (final item in clothes) {
+      if (item.id == widget.clothId) return item;
+    }
+    return null;
+  }
+
+  User? _resolveUser() {
+    final streamUser = ref.watch(authStateProvider).valueOrNull;
+    if (streamUser != null) return streamUser;
+    try {
+      return ref.read(authServiceProvider).currentUser;
+    } catch (_) {
+      return null;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    final user = ref.watch(authStateProvider).valueOrNull;
-    if (user == null) return const Scaffold();
+    final authAsync = ref.watch(authStateProvider);
+    final user = _resolveUser();
+
+    if (user == null) {
+      if (authAsync.isLoading) {
+        return Scaffold(
+          backgroundColor: MenuUiColors.surface,
+          appBar: AppBar(
+            title: const Text('Detail Pakaian'),
+            backgroundColor: MenuUiColors.crimson,
+            foregroundColor: Colors.white,
+            elevation: 0,
+          ),
+          body: const LoadingWidget(message: 'Memuat detail pakaian...'),
+        );
+      }
+      return Scaffold(
+        backgroundColor: MenuUiColors.surface,
+        appBar: AppBar(
+          title: const Text('Detail Pakaian'),
+          backgroundColor: MenuUiColors.crimson,
+          foregroundColor: Colors.white,
+          elevation: 0,
+        ),
+        body: ErrorWidgetPage(
+          message: 'Sesi pengguna belum siap. Silakan masuk ulang.',
+          onRetry: () {
+            if (context.canPop()) {
+              context.pop();
+            } else {
+              context.go('/login');
+            }
+          },
+        ),
+      );
+    }
+
+    final cachedCloth = _findCachedCloth();
+    final detailAsync = ref.watch(clothDetailProvider(widget.clothId));
+    final cloth = detailAsync.valueOrNull ?? cachedCloth;
 
     return Scaffold(
+      backgroundColor: MenuUiColors.surface,
       appBar: AppBar(
         title: const Text('Detail Pakaian'),
+        backgroundColor: MenuUiColors.crimson,
+        foregroundColor: Colors.white,
+        elevation: 0,
         actions: [
           IconButton(
-            onPressed: () => context.push('/cloth/${widget.clothId}/edit'),
+            onPressed: cloth == null
+                ? null
+                : () => context.push('/cloth/${widget.clothId}/edit'),
             icon: const Icon(Icons.edit_outlined),
             tooltip: 'Edit Pakaian',
           ),
           IconButton(
-            onPressed: () {
-              if (_currentCloth != null) {
-                _confirmDelete(_currentCloth!);
-              }
-            },
-            icon: const Icon(Icons.delete_outline, color: AppTheme.errorColor),
+            onPressed: cloth == null ? null : () => _confirmDelete(cloth),
+            icon: const Icon(Icons.delete_outline),
             tooltip: 'Hapus Pakaian',
           ),
         ],
       ),
-      body: StreamBuilder<ClothModel?>(
-        stream: ref
-            .read(clothRepositoryProvider)
-            .watchCloth(user.uid, widget.clothId),
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const LoadingWidget();
-          }
-          if (snapshot.hasError || !snapshot.hasData || snapshot.data == null) {
-            return const ErrorWidgetPage(
-              message: 'Pakaian tidak ditemukan.',
-            );
-          }
-
-          final cloth = snapshot.data!;
-          _currentCloth = cloth;
-          return SingleChildScrollView(
-            padding: const EdgeInsets.all(20),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Foto
-                ClothImageView(
-                  imageUrl: cloth.imageUrl,
-                  height: 300,
-                  width: double.infinity,
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                const SizedBox(height: 20),
-
-                // Nama
-                Text(
-                  cloth.name,
-                  style: const TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 16),
-
-                // Info cards
-                _buildInfoCard(cloth),
-                const SizedBox(height: 16),
-
-                // Stats
-                _buildStats(cloth),
-                const SizedBox(height: 24),
-
-                // Actions
-                Row(
-                  children: [
-                    Expanded(
-                      child: CustomButton(
-                        text: 'Edit',
-                        onPressed: () =>
-                            context.push('/cloth/${cloth.id}/edit'),
-                        variant: ButtonVariant.outline,
-                        icon: Icons.edit_outlined,
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: CustomButton(
-                        text: 'Hapus',
-                        onPressed: () => _confirmDelete(cloth),
-                        variant: ButtonVariant.danger,
-                        icon: Icons.delete_outline,
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          );
-        },
+      body: _buildBody(
+        cloth: cloth,
+        detailAsync: detailAsync,
       ),
     );
   }
 
-  Widget _buildInfoCard(cloth) {
+  Widget _buildBody({
+    required ClothModel? cloth,
+    required AsyncValue<ClothModel?> detailAsync,
+  }) {
+    if (cloth == null) {
+      if (detailAsync.isLoading) {
+        return const LoadingWidget(message: 'Memuat detail pakaian...');
+      }
+      return ErrorWidgetPage(
+        message: detailAsync.hasError
+            ? ErrorHandler.handle(detailAsync.error!)
+            : 'Pakaian tidak ditemukan.',
+        onRetry: () {
+          ref.invalidate(clothDetailProvider(widget.clothId));
+          ref.invalidate(clothesListProvider);
+        },
+      );
+    }
+
+    final isWashing = ref.watch(washingClothIdsProvider).contains(cloth.id);
+    final isFavorite = ref.watch(favoriteClothIdsProvider).contains(cloth.id);
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Foto dalam frame bersih agar tidak terpotong
+          Container(
+            width: double.infinity,
+            height: 300,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(color: MenuUiColors.divider),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.04),
+                  blurRadius: 12,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: ClothImageView(
+              imageUrl: cloth.imageUrl,
+              height: 300,
+              width: double.infinity,
+              fit: BoxFit.contain,
+              borderRadius: BorderRadius.circular(18),
+            ),
+          ),
+          const SizedBox(height: 18),
+
+          // Nama & badge status cepat
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Text(
+                  cloth.name,
+                  style: const TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold,
+                    color: MenuUiColors.textPrimary,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                decoration: BoxDecoration(
+                  color: isWashing
+                      ? const Color(0xFFEEF3FB)
+                      : const Color(0xFFE6F6ED),
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: Text(
+                  isWashing ? 'Sedang Dicuci' : 'Siap Pakai',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: isWashing
+                        ? const Color(0xFF3B5998)
+                        : const Color(0xFF1E8E3E),
+                  ),
+                ),
+              ),
+              if (isFavorite) ...[
+                const SizedBox(width: 6),
+                const Icon(Icons.favorite,
+                    color: MenuUiColors.crimson, size: 22),
+              ],
+            ],
+          ),
+          const SizedBox(height: 16),
+
+          // Info cards
+          _buildInfoCard(cloth),
+          const SizedBox(height: 16),
+
+          // Stats
+          _buildStats(cloth),
+          const SizedBox(height: 24),
+
+          // Actions
+          Row(
+            children: [
+              Expanded(
+                child: CustomButton(
+                  text: 'Edit',
+                  onPressed: () => context.push('/cloth/${cloth.id}/edit'),
+                  variant: ButtonVariant.outline,
+                  icon: Icons.edit_outlined,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: CustomButton(
+                  text: 'Hapus',
+                  onPressed: () => _confirmDelete(cloth),
+                  variant: ButtonVariant.danger,
+                  icon: Icons.delete_outline,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildInfoCard(ClothModel cloth) {
+    final styleText = cloth.styles.isNotEmpty
+        ? cloth.styles.map((s) => s.label).join(', ')
+        : 'Casual';
+
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppTheme.surfaceColor,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppTheme.borderColor),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: MenuUiColors.divider),
       ),
       child: Column(
         children: [
           _infoRow('Kategori', cloth.category.label),
-          const Divider(),
+          const Divider(height: 18),
           _infoRow('Warna', cloth.colorLabel),
-          const Divider(),
-          _infoRow(
-            'Gaya',
-            cloth.styles.map((s) => s.label).join(', '),
-          ),
-          const Divider(),
+          const Divider(height: 18),
+          _infoRow('Gaya', styleText),
+          const Divider(height: 18),
           _infoRow('Cuaca', cloth.weather.label),
         ],
       ),
@@ -165,7 +284,7 @@ class _ClothDetailScreenState extends ConsumerState<ClothDetailScreen> {
             child: Text(
               label,
               style: const TextStyle(
-                color: AppTheme.textSecondary,
+                color: MenuUiColors.textSecondary,
                 fontSize: 14,
               ),
             ),
@@ -174,7 +293,8 @@ class _ClothDetailScreenState extends ConsumerState<ClothDetailScreen> {
             child: Text(
               value,
               style: const TextStyle(
-                fontWeight: FontWeight.w500,
+                fontWeight: FontWeight.w600,
+                color: MenuUiColors.textPrimary,
               ),
             ),
           ),
@@ -183,7 +303,7 @@ class _ClothDetailScreenState extends ConsumerState<ClothDetailScreen> {
     );
   }
 
-  Widget _buildStats(cloth) {
+  Widget _buildStats(ClothModel cloth) {
     return Row(
       children: [
         Expanded(
@@ -210,7 +330,7 @@ class _ClothDetailScreenState extends ConsumerState<ClothDetailScreen> {
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: AppTheme.primaryColor.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(14),
       ),
       child: Column(
         children: [
@@ -221,6 +341,7 @@ class _ClothDetailScreenState extends ConsumerState<ClothDetailScreen> {
             style: const TextStyle(
               fontWeight: FontWeight.bold,
               fontSize: 16,
+              color: MenuUiColors.textPrimary,
             ),
             textAlign: TextAlign.center,
           ),
@@ -228,7 +349,7 @@ class _ClothDetailScreenState extends ConsumerState<ClothDetailScreen> {
             label,
             style: const TextStyle(
               fontSize: 12,
-              color: AppTheme.textSecondary,
+              color: MenuUiColors.textSecondary,
             ),
           ),
         ],
@@ -251,7 +372,7 @@ class _ClothDetailScreenState extends ConsumerState<ClothDetailScreen> {
           FilledButton(
             onPressed: () async {
               Navigator.of(dialogContext).pop();
-              final user = ref.read(authStateProvider).valueOrNull;
+              final user = _resolveUser();
               if (user == null) return;
 
               if (mounted) {
@@ -294,7 +415,11 @@ class _ClothDetailScreenState extends ConsumerState<ClothDetailScreen> {
                     backgroundColor: AppTheme.successColor,
                   ),
                 );
-                context.pop();
+                if (context.canPop()) {
+                  context.pop();
+                } else {
+                  context.go('/');
+                }
               } else {
                 final rawErr = ref.read(deleteClothProvider).error;
                 final err = rawErr != null

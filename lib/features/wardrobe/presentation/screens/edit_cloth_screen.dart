@@ -43,24 +43,46 @@ class _EditClothScreenState extends ConsumerState<EditClothScreen> {
   }
 
   Future<void> _loadCloth() async {
-    final user = ref.read(authStateProvider).valueOrNull;
-    if (user == null) return;
+    final cachedList = ref.read(clothesListProvider).valueOrNull ?? const [];
+    ClothModel? cloth;
+    for (final item in cachedList) {
+      if (item.id == widget.clothId) {
+        cloth = item;
+        break;
+      }
+    }
 
-    final cloth = await ref
-        .read(clothRepositoryProvider)
-        .watchCloth(user.uid, widget.clothId)
-        .first;
+    if (cloth == null) {
+      var user = ref.read(authStateProvider).valueOrNull;
+      if (user == null) {
+        try {
+          user = ref.read(authServiceProvider).currentUser;
+        } catch (_) {}
+      }
+      if (user != null) {
+        try {
+          cloth = await ref
+              .read(clothRepositoryProvider)
+              .watchCloth(user.uid, widget.clothId)
+              .first
+              .timeout(const Duration(seconds: 10));
+        } catch (_) {
+          // Biarkan UI menampilkan error / tidak ditemukan jika gagal memuat
+        }
+      }
+    }
 
     if (cloth != null && mounted) {
+      final loaded = cloth;
       setState(() {
-        _cloth = cloth;
-        _nameController.text = cloth.name;
-        _category = cloth.category;
-        _color = cloth.color;
-        _selectedStyles = cloth.styles.isNotEmpty
-            ? List<ClothStyle>.from(cloth.styles)
+        _cloth = loaded;
+        _nameController.text = loaded.name;
+        _category = loaded.category;
+        _color = loaded.color;
+        _selectedStyles = loaded.styles.isNotEmpty
+            ? List<ClothStyle>.from(loaded.styles)
             : [ClothStyle.casual];
-        _weather = cloth.weather;
+        _weather = loaded.weather;
         _loading = false;
       });
     } else if (mounted) {
@@ -125,7 +147,12 @@ class _EditClothScreenState extends ConsumerState<EditClothScreen> {
 
   Future<void> _save() async {
     if (!_formKey.currentState!.validate()) return;
-    final user = ref.read(authStateProvider).valueOrNull;
+    var user = ref.read(authStateProvider).valueOrNull;
+    if (user == null) {
+      try {
+        user = ref.read(authServiceProvider).currentUser;
+      } catch (_) {}
+    }
     if (user == null) return;
 
     final data = <String, dynamic>{

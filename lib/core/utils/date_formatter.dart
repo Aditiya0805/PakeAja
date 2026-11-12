@@ -6,12 +6,22 @@ class DateFormatter {
 
   static String format(DateTime? date, {String? format}) {
     if (date == null) return '-';
-    return DateFormat(format ?? _defaultFormat, 'id_ID').format(date);
+    try {
+      return DateFormat(format ?? _defaultFormat, 'id_ID').format(date);
+    } catch (_) {
+      return '${date.day}/${date.month}/${date.year}';
+    }
   }
 
   static String formatDateTime(DateTime? date) {
     if (date == null) return '-';
-    return DateFormat(_dateTimeFormat, 'id_ID').format(date);
+    try {
+      return DateFormat(_dateTimeFormat, 'id_ID').format(date);
+    } catch (_) {
+      final hh = date.hour.toString().padLeft(2, '0');
+      final mm = date.minute.toString().padLeft(2, '0');
+      return '${date.day}/${date.month}/${date.year}, $hh:$mm';
+    }
   }
 
   /// "Hari ini" / "Kemarin" / tanggal biasa

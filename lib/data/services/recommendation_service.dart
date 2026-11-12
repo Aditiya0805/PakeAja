@@ -587,6 +587,7 @@ class RecommendationService {
     required List<ClothModel> clothes,
     required String occasion,
     List<String> excludedIds = const [],
+    ClothWeather? weather,
   }) {
     final suitableAll =
         clothes.where((c) => isSuitableForOccasion(c, occasion)).toList();
@@ -636,6 +637,7 @@ class RecommendationService {
         outers: outers,
         accessories: accessories,
         normOccasion: normOccasion,
+        weather: weather,
       );
     }
 
@@ -649,6 +651,7 @@ class RecommendationService {
         outers: outers,
         accessories: accessories,
         normOccasion: normOccasion,
+        weather: weather,
       );
     }
 
@@ -1079,6 +1082,24 @@ class RecommendationService {
     return bestAcc;
   }
 
+  // ==================== BONUS KESESUAIAN CUACA ====================
+  double _weatherBonus(List<ClothModel> items, ClothWeather? weather) {
+    if (weather == null || items.isEmpty) return 0.0;
+    double total = 0.0;
+    for (final item in items) {
+      if (item.weather == weather) {
+        total += 2.5;
+      } else if (weather == ClothWeather.hot &&
+          item.weather == ClothWeather.rain) {
+        total -= 1.0;
+      } else if (weather == ClothWeather.rain &&
+          item.weather == ClothWeather.hot) {
+        total -= 0.5;
+      }
+    }
+    return total;
+  }
+
   // ==================== PENCARIAN KOMBINASI TERBAIK ====================
   _BestOutfitCombination? _findBestTopBottomSet({
     required List<ClothModel> tops,
@@ -1087,6 +1108,7 @@ class RecommendationService {
     required List<ClothModel> outers,
     required List<ClothModel> accessories,
     required String normOccasion,
+    ClothWeather? weather,
   }) {
     ClothModel? bestTop;
     ClothModel? bestBottom;
@@ -1146,7 +1168,8 @@ class RecommendationService {
             styleSubtotal +
             shoeSubtotal +
             colorSubtotal +
-            rotSubtotal;
+            rotSubtotal +
+            _weatherBonus([top, bottom, candidateShoe], weather);
 
         if (totalSetScore > maxScore) {
           maxScore = totalSetScore;
@@ -1181,6 +1204,7 @@ class RecommendationService {
     required List<ClothModel> outers,
     required List<ClothModel> accessories,
     required String normOccasion,
+    ClothWeather? weather,
   }) {
     ClothModel? bestOnepiece;
     ClothModel? bestShoe;
@@ -1220,7 +1244,8 @@ class RecommendationService {
 
       final totalSetScore = (affOp * (wOccasion + wPairStyle * 0.6)) +
           (bestShoeScore * wShoe) +
-          (rotOp * wRotation);
+          (rotOp * wRotation) +
+          _weatherBonus([op, candidateShoe], weather);
 
       if (totalSetScore > maxScore) {
         maxScore = totalSetScore;

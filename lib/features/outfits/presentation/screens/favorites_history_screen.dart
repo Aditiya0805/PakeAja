@@ -1879,7 +1879,8 @@ class _FavoritesHistoryScreenState extends ConsumerState<FavoritesHistoryScreen>
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      builder: (context) {
+      builder: (sheetContext) {
+        final router = GoRouter.of(context);
         return SafeArea(
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
@@ -1927,8 +1928,8 @@ class _FavoritesHistoryScreenState extends ConsumerState<FavoritesHistoryScreen>
                         '${item.category.label} • ${item.colorLabel}'),
                     trailing: const Icon(Icons.chevron_right, size: 18),
                     onTap: () {
-                      Navigator.pop(context);
-                      context.push('/cloth/${item.id}');
+                      Navigator.pop(sheetContext);
+                      router.push('/cloth/${item.id}');
                     },
                   ),
                 const SizedBox(height: 16),
@@ -1937,7 +1938,7 @@ class _FavoritesHistoryScreenState extends ConsumerState<FavoritesHistoryScreen>
                   width: double.infinity,
                   child: OutlinedButton.icon(
                     onPressed: () {
-                      Navigator.pop(context);
+                      Navigator.pop(sheetContext);
                       _scheduleOutfitToDate(outfit);
                     },
                     icon: const Icon(Icons.calendar_month_rounded,
@@ -1965,7 +1966,8 @@ class _FavoritesHistoryScreenState extends ConsumerState<FavoritesHistoryScreen>
                     Expanded(
                       child: ElevatedButton.icon(
                         onPressed: () async {
-                          Navigator.pop(context);
+                          final messenger = ScaffoldMessenger.of(context);
+                          Navigator.pop(sheetContext);
                           await ref
                               .read(wearOutfitProvider.notifier)
                               .wearOutfit(
@@ -1973,8 +1975,7 @@ class _FavoritesHistoryScreenState extends ConsumerState<FavoritesHistoryScreen>
                                 occasion: outfit.occasion,
                               );
                           if (mounted) {
-                            // ignore: use_build_context_synchronously
-                            ScaffoldMessenger.of(context).showSnackBar(
+                            messenger.showSnackBar(
                               const SnackBar(
                                 content: Text('Outfit tercatat dipakai hari ini!'),
                                 backgroundColor: AppTheme.successColor,
@@ -1997,7 +1998,7 @@ class _FavoritesHistoryScreenState extends ConsumerState<FavoritesHistoryScreen>
                     const SizedBox(width: 10),
                     OutlinedButton(
                       onPressed: () {
-                        Navigator.pop(context);
+                        Navigator.pop(sheetContext);
                         _confirmRemoveFavorite(outfit.id);
                       },
                       style: OutlinedButton.styleFrom(

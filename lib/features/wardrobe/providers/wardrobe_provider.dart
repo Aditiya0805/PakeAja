@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 import 'dart:typed_data';
 
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:pakeaja/core/providers/service_providers.dart';
@@ -11,11 +12,29 @@ import 'package:pakeaja/data/services/recommendation_service.dart';
 import 'package:pakeaja/features/auth/providers/auth_provider.dart'
     show authStateProvider;
 
+User? _safeCurrentUser(Ref ref) {
+  final streamUser = ref.watch(authStateProvider).valueOrNull;
+  if (streamUser != null) return streamUser;
+  try {
+    return ref.read(authServiceProvider).currentUser;
+  } catch (_) {
+    return null;
+  }
+}
+
 // ==================== CLOTHES LIST ====================
 final clothesListProvider = StreamProvider.autoDispose<List<ClothModel>>((ref) {
-  final user = ref.watch(authStateProvider).valueOrNull;
+  final user = _safeCurrentUser(ref);
   if (user == null) return Stream.value([]);
   return ref.watch(clothRepositoryProvider).watchClothes(user.uid);
+});
+
+/// Stream detail satu pakaian agar tidak membuat subscription berulang saat build.
+final clothDetailProvider =
+    StreamProvider.autoDispose.family<ClothModel?, String>((ref, clothId) {
+  final user = _safeCurrentUser(ref);
+  if (user == null) return Stream.value(null);
+  return ref.watch(clothRepositoryProvider).watchCloth(user.uid, clothId);
 });
 
 // ==================== FAVORITES & LAUNDRY STATE (FRONTEND) ====================

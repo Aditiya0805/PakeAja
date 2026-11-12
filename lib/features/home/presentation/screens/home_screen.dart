@@ -1,18 +1,22 @@
 import 'dart:math' as math;
 
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:pakeaja/core/theme/app_theme.dart';
 import 'package:pakeaja/core/widgets/cloth_image_view.dart';
 import 'package:pakeaja/data/models/cloth_model.dart';
 import 'package:pakeaja/data/models/outfit_model.dart';
+import 'package:pakeaja/data/models/weather_model.dart';
 import 'package:pakeaja/features/auth/providers/auth_provider.dart';
 import 'package:pakeaja/features/outfits/providers/outfit_provider.dart';
 import 'package:pakeaja/features/recommendation/providers/recommendation_provider.dart';
 import 'package:pakeaja/features/wardrobe/providers/wardrobe_provider.dart';
+import 'package:pakeaja/features/weather/providers/weather_provider.dart';
 
 // ─── Palette ───────────────────────────────────────────────────────────────
 const _crimson = Color(0xFFC4202F);
@@ -189,6 +193,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     final user = ref.watch(userDataProvider).valueOrNull;
     final clothes = ref.watch(clothesListProvider).valueOrNull ?? [];
     final recState = ref.watch(recommendationProvider);
+    final weatherState = ref.watch(weatherProvider);
     final activeOccasion = recState.selectedOccasion;
 
     if (_hasEnoughClothes(clothes) &&
@@ -219,9 +224,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
       body: RefreshIndicator(
         color: _crimson,
         onRefresh: () async {
-          await ref
-              .read(recommendationProvider.notifier)
-              .recommend(activeOccasion);
+          await Future.wait([
+            ref.read(weatherProvider.notifier).refresh(),
+            ref.read(recommendationProvider.notifier).recommend(activeOccasion),
+          ]);
         },
         child: CustomScrollView(
           physics: const AlwaysScrollableScrollPhysics(),
@@ -244,7 +250,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
             SliverPadding(
               padding: const EdgeInsets.fromLTRB(18, 20, 18, 0),
               sliver: SliverToBoxAdapter(
-                child: _WeatherBadgeCard(onTap: _showWeatherDetailModal),
+                child: _WeatherBadgeCard(
+                  weatherState: weatherState,
+                  onTap: _showWeatherDetailModal,
+                ),
               ),
             ),
 
@@ -1076,68 +1085,77 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
   }
 
   Widget _buildClothItemRow(ClothModel item) {
-    return Row(
-      children: [
-        ClipRRect(
-          borderRadius: BorderRadius.circular(10),
-          child: Container(
-            width: 54,
-            height: 54,
-            color: Colors.white,
-            child: ClothImageView(
-              imageUrl: item.imageUrl,
+    return InkWell(
+      onTap: () => context.push('/cloth/${item.id}'),
+      borderRadius: BorderRadius.circular(12),
+      child: Row(
+        children: [
+          ClipRRect(
+            borderRadius: BorderRadius.circular(10),
+            child: Container(
               width: 54,
               height: 54,
-              borderRadius: BorderRadius.circular(10),
+              color: Colors.white,
+              child: ClothImageView(
+                imageUrl: item.imageUrl,
+                width: 54,
+                height: 54,
+                borderRadius: BorderRadius.circular(10),
+              ),
             ),
           ),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                item.name,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 14,
-                  color: _textPrimary,
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  item.name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 14,
+                    color: _textPrimary,
+                  ),
                 ),
-              ),
-              const SizedBox(height: 4),
-              Row(
-                children: [
-                  Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: _crimson.withValues(alpha: 0.08),
-                      borderRadius: BorderRadius.circular(6),
-                    ),
-                    child: Text(
-                      item.category.label,
-                      style: const TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
-                        color: _crimson,
+                const SizedBox(height: 4),
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 7, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: _crimson.withValues(alpha: 0.08),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(
+                        item.category.label,
+                        style: const TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: _crimson,
+                        ),
                       ),
                     ),
-                  ),
-                  const SizedBox(width: 6),
-                  Text(
-                    item.colorLabel,
-                    style: const TextStyle(
-                        fontSize: 12, color: _textSecondary),
-                  ),
-                ],
-              ),
-            ],
+                    const SizedBox(width: 6),
+                    Text(
+                      item.colorLabel,
+                      style: const TextStyle(
+                          fontSize: 12, color: _textSecondary),
+                    ),
+                  ],
+                ),
+              ],
+            ),
           ),
-        ),
-      ],
+          const Icon(
+            Icons.chevron_right_rounded,
+            size: 18,
+            color: Color(0xFFBDBDBD),
+          ),
+        ],
+      ),
     );
   }
 
@@ -1256,60 +1274,167 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
-      builder: (context) {
-        return SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.all(20),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Row(
+      builder: (modalContext) {
+        return Consumer(
+          builder: (context, modalRef, _) {
+            final weatherState = modalRef.watch(weatherProvider);
+            final weather = weatherState.data;
+            final showSettingsButton = !kIsWeb &&
+                (weatherState.issueType ==
+                        WeatherIssueType.permissionDeniedForever ||
+                    weatherState.issueType == WeatherIssueType.serviceDisabled);
+
+            return SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Icon(Icons.wb_sunny_rounded, color: _crimson, size: 28),
-                    SizedBox(width: 10),
-                    Text(
-                      'Cuaca & Saran Busana',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: _textPrimary,
+                    Row(
+                      children: [
+                        Icon(
+                          weather?.iconData ?? Icons.location_on_rounded,
+                          color: _crimson,
+                          size: 28,
+                        ),
+                        const SizedBox(width: 10),
+                        const Expanded(
+                          child: Text(
+                            'Cuaca & Saran Busana',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              color: _textPrimary,
+                            ),
+                          ),
+                        ),
+                        IconButton(
+                          tooltip: 'Perbarui lokasi & cuaca',
+                          onPressed: weatherState.isLoading
+                              ? null
+                              : () => modalRef
+                                  .read(weatherProvider.notifier)
+                                  .refresh(),
+                          icon: const Icon(Icons.refresh_rounded,
+                              color: _crimson),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 14),
+                    if (weather != null) ...[
+                      Text(
+                        'Lokasi: ${weather.locationName} (${weather.tempText} - ${weather.conditionLabel})',
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 14,
+                          color: _textPrimary,
+                        ),
                       ),
+                      const SizedBox(height: 10),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: [
+                          _WeatherMetaChip(
+                            icon: Icons.thermostat_rounded,
+                            label: 'Terasa ${weather.roundedFeelsLike}°C',
+                          ),
+                          _WeatherMetaChip(
+                            icon: Icons.water_drop_outlined,
+                            label: 'Kelembapan ${weather.humidity}%',
+                          ),
+                          _WeatherMetaChip(
+                            icon: Icons.air_rounded,
+                            label: 'Angin ${weather.windSpeedKmh.round()} km/j',
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      Text(
+                        weather.detailedAdvice,
+                        style: const TextStyle(
+                          fontSize: 13,
+                          color: _textSecondary,
+                          height: 1.45,
+                        ),
+                      ),
+                    ] else ...[
+                      Text(
+                        weatherState.isLoading
+                            ? 'Sedang mendeteksi lokasi GPS dan mengambil cuaca terkini...'
+                            : (weatherState.errorMessage ??
+                                'Aktifkan izin lokasi agar PakeAja dapat menampilkan cuaca nyata di lokasimu.'),
+                        style: const TextStyle(
+                          fontSize: 13.5,
+                          color: _textSecondary,
+                          height: 1.45,
+                        ),
+                      ),
+                    ],
+                    const SizedBox(height: 20),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            onPressed: weatherState.isLoading
+                                ? null
+                                : () => modalRef
+                                    .read(weatherProvider.notifier)
+                                    .refresh(),
+                            icon: const Icon(Icons.my_location_rounded,
+                                size: 18),
+                            label: Text(weatherState.isLoading
+                                ? 'Memuat...'
+                                : 'Perbarui Lokasi'),
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: _crimson,
+                              side: const BorderSide(color: _crimson),
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: ElevatedButton(
+                            onPressed: () async {
+                              if (showSettingsButton && weather == null) {
+                                if (weatherState.issueType ==
+                                    WeatherIssueType.serviceDisabled) {
+                                  await Geolocator.openLocationSettings();
+                                } else {
+                                  await Geolocator.openAppSettings();
+                                }
+                              }
+                              if (modalContext.mounted) {
+                                Navigator.pop(modalContext);
+                              }
+                            },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: _crimson,
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
+                            child: Text(
+                              showSettingsButton && weather == null
+                                  ? 'Buka Pengaturan'
+                                  : 'Mengerti',
+                              style: const TextStyle(color: Colors.white),
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ),
-                const SizedBox(height: 16),
-                const Text(
-                  'Lokasi: Jakarta Selatan (28°C - Cerah)',
-                  style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
-                ),
-                const SizedBox(height: 8),
-                const Text(
-                  'Kondisi cuaca hari ini hangat dengan kelembapan sedang. Sangat disarankan memakai pakaian berbahan katun, linen, atau rajutan tipis dengan warna terang agar tidak menyerap panas berlebih.',
-                  style: TextStyle(
-                    fontSize: 13,
-                    color: _textSecondary,
-                    height: 1.4,
-                  ),
-                ),
-                const SizedBox(height: 20),
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    onPressed: () => Navigator.pop(context),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: _crimson,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                    child: const Text('Mengerti',
-                        style: TextStyle(color: Colors.white)),
-                  ),
-                ),
-              ],
-            ),
-          ),
+              ),
+            );
+          },
         );
       },
     );
@@ -1647,11 +1772,47 @@ class _StatChip extends StatelessWidget {
 // WEATHER BADGE CARD
 // ═══════════════════════════════════════════════════════════════════════════
 class _WeatherBadgeCard extends StatelessWidget {
+  final WeatherState weatherState;
   final VoidCallback onTap;
-  const _WeatherBadgeCard({required this.onTap});
+
+  const _WeatherBadgeCard({
+    required this.weatherState,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
+    final weather = weatherState.data;
+    final emoji = weather != null
+        ? weather.emoji
+        : (weatherState.isLoading ? '📍' : '🌦️');
+
+    final headline = weather != null
+        ? '${weather.tempText}  ${weather.conditionLabel}'
+        : (weatherState.isLoading
+            ? 'Mendeteksi lokasi...'
+            : 'Lokasi & Cuaca');
+
+    final locationChip = weather != null
+        ? weather.locationName
+        : (weatherState.isLoading ? 'GPS Aktif' : 'Ketuk Aktifkan');
+
+    final subtitle = weather != null
+        ? (weatherState.isLoading
+            ? 'Memperbarui lokasi & cuaca terkini...'
+            : weather.shortAdvice)
+        : (weatherState.isLoading
+            ? 'Mengambil suhu & kondisi cuaca di sekitarmu'
+            : (weatherState.errorMessage ??
+                'Ketuk untuk mengizinkan lokasi & melihat cuaca terkini.'));
+
+    final isRainyOrCool = weather != null &&
+        (weather.isRainy || weather.clothWeather == ClothWeather.cool);
+
+    final badgeGradientColors = isRainyOrCool
+        ? const [Color(0xFFBBDEFB), Color(0xFFE3F2FD)]
+        : const [Color(0xFFFFE0B2), Color(0xFFFFF3E0)];
+
     return GestureDetector(
       onTap: onTap,
       child: Container(
@@ -1670,18 +1831,15 @@ class _WeatherBadgeCard extends StatelessWidget {
         ),
         child: Row(
           children: [
-            // Sun icon with radial gradient bg
             Container(
               width: 44,
               height: 44,
-              decoration: const BoxDecoration(
-                gradient: RadialGradient(
-                  colors: [Color(0xFFFFE0B2), Color(0xFFFFF3E0)],
-                ),
+              decoration: BoxDecoration(
+                gradient: RadialGradient(colors: badgeGradientColors),
                 shape: BoxShape.circle,
               ),
-              child: const Center(
-                child: Text('☀️', style: TextStyle(fontSize: 22)),
+              child: Center(
+                child: Text(emoji, style: const TextStyle(fontSize: 22)),
               ),
             ),
             const SizedBox(width: 14),
@@ -1691,39 +1849,57 @@ class _WeatherBadgeCard extends StatelessWidget {
                 children: [
                   Row(
                     children: [
-                      const Text(
-                        '28°C  Cerah',
-                        style: TextStyle(
+                      Text(
+                        headline,
+                        style: const TextStyle(
                           fontSize: 15,
                           fontWeight: FontWeight.bold,
                           color: _textPrimary,
                         ),
                       ),
                       const SizedBox(width: 8),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 8, vertical: 2),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFEEF2F9),
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: const Text(
-                          'Jakarta Selatan',
-                          style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w500,
-                            color: Color(0xFF3B5998),
+                      Flexible(
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 8, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFEEF2F9),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(
+                                Icons.location_on_rounded,
+                                size: 11,
+                                color: Color(0xFF3B5998),
+                              ),
+                              const SizedBox(width: 3),
+                              Flexible(
+                                child: Text(
+                                  locationChip,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w500,
+                                    color: Color(0xFF3B5998),
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                       ),
                     ],
                   ),
                   const SizedBox(height: 3),
-                  const Text(
-                    'Cocok untuk kemeja katun & celana linen.',
+                  Text(
+                    subtitle,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: TextStyle(fontSize: 12.5, color: _textSecondary),
+                    style:
+                        const TextStyle(fontSize: 12.5, color: _textSecondary),
                   ),
                 ],
               ),
@@ -1732,6 +1908,39 @@ class _WeatherBadgeCard extends StatelessWidget {
                 color: Color(0xFFBDBDBD), size: 20),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _WeatherMetaChip extends StatelessWidget {
+  final IconData icon;
+  final String label;
+
+  const _WeatherMetaChip({required this.icon, required this.label});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF3F5F8),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 14, color: _crimson),
+          const SizedBox(width: 5),
+          Text(
+            label,
+            style: const TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w500,
+              color: _textPrimary,
+            ),
+          ),
+        ],
       ),
     );
   }

@@ -11,6 +11,7 @@ import 'package:pakeaja/data/models/outfit_model.dart';
 import 'package:pakeaja/features/outfits/providers/outfit_provider.dart';
 import 'package:pakeaja/features/recommendation/providers/recommendation_provider.dart';
 import 'package:pakeaja/features/wardrobe/providers/wardrobe_provider.dart';
+import 'package:pakeaja/features/weather/providers/weather_provider.dart';
 
 class RecommendationScreen extends ConsumerStatefulWidget {
   final String occasion;
@@ -165,6 +166,7 @@ class _RecommendationScreenState extends ConsumerState<RecommendationScreen> {
       _customSwapped.clear();
     }
     final clothes = ref.watch(clothesListProvider).valueOrNull ?? [];
+    final weatherState = ref.watch(weatherProvider);
 
     // Otomatis buat rekomendasi jika pakaian sudah cukup dan rekomendasi masih kosong
     if (_hasEnoughClothes(clothes) &&
@@ -188,16 +190,17 @@ class _RecommendationScreenState extends ConsumerState<RecommendationScreen> {
         color: MenuUiColors.crimson,
         onRefresh: () async {
           setState(() => _customSwapped.clear());
-          await ref
-              .read(recommendationProvider.notifier)
-              .recommend(_getOccasionKey());
+          await Future.wait([
+            ref.read(weatherProvider.notifier).refresh(),
+            ref.read(recommendationProvider.notifier).recommend(_getOccasionKey()),
+          ]);
         },
         child: CustomScrollView(
           physics: const AlwaysScrollableScrollPhysics(),
           slivers: [
             // 1. Hero Header gradasi crimson mengikuti HomeScreen
             SliverToBoxAdapter(
-              child: _buildHeroHeader(recState, clothes),
+              child: _buildHeroHeader(recState, clothes, weatherState),
             ),
 
             // 2. Pilih Agenda Hari Ini
@@ -261,7 +264,17 @@ class _RecommendationScreenState extends ConsumerState<RecommendationScreen> {
   Widget _buildHeroHeader(
     RecommendationState recState,
     List<ClothModel> clothes,
+    WeatherState weatherState,
   ) {
+    final weather = weatherState.data;
+    final weatherEmoji =
+        weather != null ? weather.emoji : (weatherState.isLoading ? '📍' : '🌦️');
+    final weatherBadgeText = weather != null
+        ? weather.tempText
+        : (weatherState.isLoading ? '...' : 'Lokasi');
+    final weatherDesc = weather != null
+        ? 'Rekomendasi disesuaikan dengan cuaca ${weather.tempText} (${weather.conditionLabel}) di ${weather.locationName}.'
+        : 'Aktifkan izin lokasi agar rekomendasi menyesuaikan cuaca daerahmu.';
     return MenuHeroHeader(
       leading: Container(
         width: 46,
@@ -286,37 +299,39 @@ class _RecommendationScreenState extends ConsumerState<RecommendationScreen> {
       title: 'Rekomendasi',
       caption: 'Padu-padan cerdas dari isi lemarimu',
       actions: [
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 7),
-          decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.18),
-            borderRadius: BorderRadius.circular(18),
-            border: Border.all(color: Colors.white.withValues(alpha: 0.3)),
-          ),
-          child: const Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text('☀️', style: TextStyle(fontSize: 13)),
-              SizedBox(width: 5),
-              Text(
-                '28°C',
-                style: TextStyle(
-                  fontSize: 12.5,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
+        GestureDetector(
+          onTap: () => ref.read(weatherProvider.notifier).refresh(),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 7),
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.18),
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.3)),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(weatherEmoji, style: const TextStyle(fontSize: 13)),
+                const SizedBox(width: 5),
+                Text(
+                  weatherBadgeText,
+                  style: const TextStyle(
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
         HeroGlassIconButton(
           icon: Icons.notifications_none_rounded,
           onTap: () {
             ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content:
-                    Text('Rekomendasi disesuaikan dengan cuaca hari ini.'),
-                duration: Duration(seconds: 2),
+              SnackBar(
+                content: Text(weatherDesc),
+                duration: const Duration(seconds: 2),
               ),
             );
           },
@@ -774,38 +789,47 @@ class _RecommendationScreenState extends ConsumerState<RecommendationScreen> {
             ],
           ),
           const SizedBox(height: 8),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(12),
-            child: Container(
-              height: 118,
-              width: double.infinity,
-              color: Colors.white,
-              child: ClothImageView(
-                imageUrl: item.imageUrl,
-                fit: BoxFit.contain,
-                width: double.infinity,
-              ),
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            item.name,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.bold,
-              color: MenuUiColors.textPrimary,
-            ),
-          ),
-          const SizedBox(height: 2),
-          Text(
-            '${item.styles.isNotEmpty ? item.styles.map((s) => s.label).join(', ') : 'Casual'} • ${item.colorLabel}',
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              fontSize: 11,
-              color: MenuUiColors.textSecondary,
+          GestureDetector(
+            onTap: () => context.push('/cloth/${item.id}'),
+            behavior: HitTestBehavior.opaque,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: Container(
+                    height: 118,
+                    width: double.infinity,
+                    color: Colors.white,
+                    child: ClothImageView(
+                      imageUrl: item.imageUrl,
+                      fit: BoxFit.contain,
+                      width: double.infinity,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  item.name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.bold,
+                    color: MenuUiColors.textPrimary,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  '${item.styles.isNotEmpty ? item.styles.map((s) => s.label).join(', ') : 'Casual'} • ${item.colorLabel}',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 11,
+                    color: MenuUiColors.textSecondary,
+                  ),
+                ),
+              ],
             ),
           ),
         ],
@@ -1142,6 +1166,11 @@ class _RecommendationScreenState extends ConsumerState<RecommendationScreen> {
 
   // ==================== FILTER MODAL ====================
   void _showFilterModal() {
+    final weather = ref.read(weatherProvider).data;
+    final weatherSummary = weather != null
+        ? 'kondisi cuaca ${weather.tempText} (${weather.conditionLabel}) di ${weather.locationName}'
+        : 'kondisi cuaca di lokasimu';
+
     showModalBottomSheet(
       context: context,
       shape: const RoundedRectangleBorder(
@@ -1164,9 +1193,9 @@ class _RecommendationScreenState extends ConsumerState<RecommendationScreen> {
                   ),
                 ),
                 const SizedBox(height: 8),
-                const Text(
-                  'AI PakeAja meracik outfit dengan menganalisis kecocokan warna analogus, rotasi pakaian yang jarang dipakai, dan kondisi cuaca 28°C.',
-                  style: TextStyle(
+                Text(
+                  'AI PakeAja meracik outfit dengan menganalisis kecocokan warna analogus, rotasi pakaian yang jarang dipakai, dan $weatherSummary.',
+                  style: const TextStyle(
                     fontSize: 13,
                     color: Color(0xFF757575),
                     height: 1.4,

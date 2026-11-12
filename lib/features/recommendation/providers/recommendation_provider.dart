@@ -5,6 +5,8 @@ import 'package:pakeaja/core/utils/error_handler.dart';
 import 'package:pakeaja/data/models/cloth_model.dart';
 import 'package:pakeaja/data/models/outfit_model.dart';
 import 'package:pakeaja/features/auth/providers/auth_provider.dart' show authStateProvider;
+import 'package:pakeaja/features/weather/providers/weather_provider.dart'
+    show WeatherState, weatherProvider;
 import '../../outfits/providers/outfit_provider.dart'
     show outfitHistoryProvider;
 import '../../wardrobe/providers/wardrobe_provider.dart'
@@ -73,6 +75,17 @@ class RecommendationNotifier extends StateNotifier<RecommendationState> {
         }
       }
     });
+
+    // Perbarui rekomendasi jika kondisi cuaca lokasi user berubah
+    _ref.listen<WeatherState>(weatherProvider, (prev, next) {
+      final prevWeather = prev?.data?.clothWeather;
+      final nextWeather = next.data?.clothWeather;
+      if (nextWeather != null &&
+          nextWeather != prevWeather &&
+          _ref.read(clothesForRecommendationProvider).isNotEmpty) {
+        recommend(_currentOccasion);
+      }
+    });
   }
 
   Future<void> recommend(String occasion) async {
@@ -109,6 +122,7 @@ class RecommendationNotifier extends StateNotifier<RecommendationState> {
         clothes: clothes,
         occasion: occasion,
         excludedIds: recentIds.toList(),
+        weather: _ref.read(weatherProvider).data?.clothWeather,
       );
 
       state = RecommendationState(
@@ -162,6 +176,7 @@ class RecommendationNotifier extends StateNotifier<RecommendationState> {
             clothes: clothes,
             occasion: occasion,
             excludedIds: excluded,
+            weather: _ref.read(weatherProvider).data?.clothWeather,
           );
           if (candidate.itemIds.join() != current.itemIds.join()) {
             result = candidate;
@@ -173,7 +188,11 @@ class RecommendationNotifier extends StateNotifier<RecommendationState> {
         attempts++;
       }
 
-      result ??= service.recommend(clothes: clothes, occasion: occasion);
+      result ??= service.recommend(
+        clothes: clothes,
+        occasion: occasion,
+        weather: _ref.read(weatherProvider).data?.clothWeather,
+      );
 
       state = RecommendationState(
         selectedOccasion: occasion,

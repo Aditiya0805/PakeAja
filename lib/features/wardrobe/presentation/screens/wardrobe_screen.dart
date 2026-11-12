@@ -1272,12 +1272,13 @@ class _WardrobeScreenState extends ConsumerState<WardrobeScreen> {
   }
 
   void _showOptions(ClothModel cloth) {
+    final router = GoRouter.of(context);
     showModalBottomSheet(
       context: context,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      builder: (context) => SafeArea(
+      builder: (sheetContext) => SafeArea(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -1293,11 +1294,19 @@ class _WardrobeScreenState extends ConsumerState<WardrobeScreen> {
               ),
             ),
             ListTile(
+              leading: const Icon(Icons.visibility_outlined),
+              title: const Text('Lihat Detail Pakaian'),
+              onTap: () {
+                Navigator.of(sheetContext).pop();
+                router.push('/cloth/${cloth.id}');
+              },
+            ),
+            ListTile(
               leading: const Icon(Icons.edit_outlined),
               title: const Text('Edit Detail Pakaian'),
               onTap: () {
-                context.pop();
-                context.push('/cloth/${cloth.id}/edit');
+                Navigator.of(sheetContext).pop();
+                router.push('/cloth/${cloth.id}/edit');
               },
             ),
             ListTile(
@@ -1306,7 +1315,7 @@ class _WardrobeScreenState extends ConsumerState<WardrobeScreen> {
               title: const Text('Hapus Pakaian',
                   style: TextStyle(color: AppTheme.errorColor)),
               onTap: () {
-                context.pop();
+                Navigator.of(sheetContext).pop();
                 _confirmDelete(cloth);
               },
             ),

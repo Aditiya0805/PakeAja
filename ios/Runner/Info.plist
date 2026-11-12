@@ -31,6 +31,10 @@
 	<key>NSCameraUsageDescription</key>
 	<string>PakeAja membutuhkan akses kamera untuk mengambil foto pakaian kamu.</string>
 
+	<!-- Lokasi: untuk menampilkan cuaca dan saran busana sesuai lokasi user -->
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>PakeAja membutuhkan akses lokasi untuk menampilkan cuaca terkini dan rekomendasi pakaian yang sesuai.</string>
+
 	<!-- Galeri: untuk memilih foto dari library -->
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>PakeAja membutuhkan akses galeri untuk memilih foto pakaian kamu.</string>
