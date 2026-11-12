@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'package:pakeaja/core/theme/app_theme.dart';
 import 'package:pakeaja/core/widgets/cloth_image_view.dart';
+import 'package:pakeaja/core/widgets/menu_hero_header.dart';
 import 'package:pakeaja/data/models/cloth_model.dart';
 
 class ClothingCard extends StatelessWidget {
@@ -70,24 +71,24 @@ class ClothingCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFEEF0F2)),
+        color: MenuUiColors.cardBg,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: MenuUiColors.divider),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.02),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
+            color: Colors.black.withValues(alpha: 0.03),
+            blurRadius: 10,
+            offset: const Offset(0, 3),
           ),
         ],
       ),
       child: Material(
         color: Colors.transparent,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(18),
         child: InkWell(
           onTap: onTap,
           onLongPress: onLongPress,
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(18),
           child: Padding(
             padding: const EdgeInsets.all(12),
             child: Column(
@@ -179,10 +180,10 @@ class ClothingCard extends StatelessWidget {
                 Expanded(
                   child: Center(
                     child: ClipRRect(
-                      borderRadius: BorderRadius.circular(10),
+                      borderRadius: BorderRadius.circular(12),
                       child: Container(
                         width: double.infinity,
-                        color: const Color(0xFFF9FAFB),
+                        color: MenuUiColors.surface,
                         child: ClothImageView(
                           imageUrl: cloth.imageUrl,
                           fit: BoxFit.contain,

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'package:pakeaja/core/theme/app_theme.dart';
+import 'package:pakeaja/core/widgets/menu_hero_header.dart';
 import 'package:pakeaja/features/home/presentation/screens/home_screen.dart';
 import 'package:pakeaja/features/outfits/presentation/screens/favorites_history_screen.dart';
 import 'package:pakeaja/features/profile/presentation/screens/profile_screen.dart';
@@ -40,13 +40,13 @@ class _MainScreenState extends ConsumerState<MainScreen> {
         decoration: BoxDecoration(
           color: Colors.white,
           border: const Border(
-            top: BorderSide(color: Color(0xFFF0F0F2), width: 1),
+            top: BorderSide(color: MenuUiColors.divider, width: 1),
           ),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.03),
-              blurRadius: 8,
-              offset: const Offset(0, -2),
+              color: Colors.black.withValues(alpha: 0.04),
+              blurRadius: 12,
+              offset: const Offset(0, -3),
             ),
           ],
         ),
@@ -118,17 +118,27 @@ class _MainScreenState extends ConsumerState<MainScreen> {
         mainAxisSize: MainAxisSize.min,
         children: [
           AnimatedContainer(
-            duration: const Duration(milliseconds: 200),
+            duration: const Duration(milliseconds: 220),
             width: isSelected ? 56 : 40,
             height: 32,
             decoration: BoxDecoration(
-              color: isSelected ? AppTheme.primaryColor : Colors.transparent,
+              gradient: isSelected ? MenuUiColors.ctaGradient : null,
+              color: isSelected ? null : Colors.transparent,
               borderRadius: BorderRadius.circular(16),
+              boxShadow: isSelected
+                  ? [
+                      BoxShadow(
+                        color: MenuUiColors.crimson.withValues(alpha: 0.28),
+                        blurRadius: 8,
+                        offset: const Offset(0, 3),
+                      ),
+                    ]
+                  : null,
             ),
             child: Center(
               child: Icon(
                 isSelected ? selectedIcon : unselectedIcon,
-                color: isSelected ? Colors.white : const Color(0xFF6B7280),
+                color: isSelected ? Colors.white : MenuUiColors.textSecondary,
                 size: 20,
               ),
             ),
@@ -139,7 +149,9 @@ class _MainScreenState extends ConsumerState<MainScreen> {
             style: TextStyle(
               fontSize: 11.5,
               fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-              color: isSelected ? AppTheme.textPrimary : const Color(0xFF6B7280),
+              color: isSelected
+                  ? MenuUiColors.crimson
+                  : MenuUiColors.textSecondary,
             ),
           ),
         ],

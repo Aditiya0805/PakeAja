@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -12,6 +14,15 @@ import 'package:pakeaja/features/outfits/providers/outfit_provider.dart';
 import 'package:pakeaja/features/recommendation/providers/recommendation_provider.dart';
 import 'package:pakeaja/features/wardrobe/providers/wardrobe_provider.dart';
 
+// ─── Palette ───────────────────────────────────────────────────────────────
+const _crimson = Color(0xFFC4202F);
+const _crimsonLight = Color(0xFFEF5537);
+const _surface = Color(0xFFF6F7FA);
+const _cardBg = Colors.white;
+const _textPrimary = Color(0xFF1A1D23);
+const _textSecondary = Color(0xFF6B7280);
+const _divider = Color(0xFFEDF0F3);
+
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
 
@@ -19,8 +30,14 @@ class HomeScreen extends ConsumerStatefulWidget {
   ConsumerState<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends ConsumerState<HomeScreen> {
-  // Daftar occasion utama di beranda (sesuai tampilan desain)
+class _HomeScreenState extends ConsumerState<HomeScreen>
+    with TickerProviderStateMixin {
+  late final AnimationController _headerAnimCtrl;
+  late final AnimationController _cardPulseCtrl;
+  late final Animation<double> _headerFade;
+  late final Animation<Offset> _headerSlide;
+  late final Animation<double> _cardPulse;
+
   final List<Map<String, dynamic>> _occasions = [
     {
       'label': 'Kuliah',
@@ -28,6 +45,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       'icon': Icons.school_rounded,
       'tag': 'Untuk Kuliah Pagi',
       'styleNote': 'Layering Katun',
+      'emoji': '🎓',
+      'gradient': [const Color(0xFF6C63FF), const Color(0xFF9B59B6)],
     },
     {
       'label': 'Santai',
@@ -35,6 +54,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       'icon': Icons.coffee_outlined,
       'tag': 'Santai & Hangout',
       'styleNote': 'Cozy Minimalist',
+      'emoji': '☕',
+      'gradient': [const Color(0xFFFF7043), const Color(0xFFFFB74D)],
     },
     {
       'label': 'Formal',
@@ -42,6 +63,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       'icon': Icons.work_outline_rounded,
       'tag': 'Pertemuan Formal',
       'styleNote': 'Professional Look',
+      'emoji': '💼',
+      'gradient': [const Color(0xFF1565C0), const Color(0xFF42A5F5)],
     },
     {
       'label': 'Semi Formal',
@@ -49,6 +72,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       'icon': Icons.badge_outlined,
       'tag': 'Acara Semi Formal',
       'styleNote': 'Smart Casual',
+      'emoji': '👔',
+      'gradient': [const Color(0xFF00897B), const Color(0xFF4DB6AC)],
     },
     {
       'label': 'Olahraga',
@@ -56,6 +81,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       'icon': Icons.directions_run_rounded,
       'tag': 'Aktivitas Olahraga',
       'styleNote': 'Breathable Active',
+      'emoji': '🏃',
+      'gradient': [const Color(0xFFF44336), const Color(0xFFFF7043)],
     },
     {
       'label': 'Organisasi',
@@ -63,6 +90,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       'icon': Icons.groups_outlined,
       'tag': 'Rapat Organisasi',
       'styleNote': 'Rapi & Terstruktur',
+      'emoji': '🤝',
+      'gradient': [const Color(0xFF5C6BC0), const Color(0xFF7986CB)],
     },
   ];
 
@@ -72,7 +101,32 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   @override
   void initState() {
     super.initState();
-    // Inisialisasi rekomendasi untuk occasion default jika belum ada
+    _headerAnimCtrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 700),
+    );
+    _cardPulseCtrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 600),
+    )..forward();
+
+    _headerFade = CurvedAnimation(
+      parent: _headerAnimCtrl,
+      curve: Curves.easeOut,
+    );
+    _headerSlide = Tween<Offset>(
+      begin: const Offset(0, -0.08),
+      end: Offset.zero,
+    ).animate(CurvedAnimation(
+      parent: _headerAnimCtrl,
+      curve: Curves.easeOut,
+    ));
+    _cardPulse = Tween<double>(begin: 0.95, end: 1.0).animate(
+      CurvedAnimation(parent: _cardPulseCtrl, curve: Curves.easeOut),
+    );
+
+    _headerAnimCtrl.forward();
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       final state = ref.read(recommendationProvider);
@@ -84,6 +138,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             .recommend(state.selectedOccasion);
       }
     });
+  }
+
+  @override
+  void dispose() {
+    _headerAnimCtrl.dispose();
+    _cardPulseCtrl.dispose();
+    super.dispose();
   }
 
   void _onOccasionSelected(String occasion) {
@@ -101,6 +162,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     if (hour < 15) return 'Selamat siang';
     if (hour < 19) return 'Selamat sore';
     return 'Selamat malam';
+  }
+
+  String _getGreetingEmoji() {
+    final hour = DateTime.now().hour;
+    if (hour < 11) return '🌤️';
+    if (hour < 15) return '☀️';
+    if (hour < 19) return '🌇';
+    return '🌙';
   }
 
   bool _hasEnoughClothes(List<ClothModel> clothes) {
@@ -122,7 +191,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final recState = ref.watch(recommendationProvider);
     final activeOccasion = recState.selectedOccasion;
 
-    // Otomatis buat rekomendasi jika pakaian sudah cukup dan rekomendasi masih kosong
     if (_hasEnoughClothes(clothes) &&
         recState.recommendation == null &&
         recState.error == null &&
@@ -147,221 +215,64 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         : 'Pengguna';
 
     return Scaffold(
-      backgroundColor: AppTheme.backgroundColor,
-      body: SafeArea(
-        child: RefreshIndicator(
-          color: AppTheme.primaryColor,
-          onRefresh: () async {
-            await ref
-                .read(recommendationProvider.notifier)
-                .recommend(activeOccasion);
-          },
-          child: SingleChildScrollView(
-            physics: const AlwaysScrollableScrollPhysics(),
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // 1. Header (Profil & Notifikasi)
-                _buildHeader(user, greeting, userName),
-                const SizedBox(height: 18),
-
-                // 2. Weather & Outfit Tip Card
-                _buildWeatherCard(),
-                const SizedBox(height: 18),
-
-                // 3. Banner Lemari Digital AI
-                _buildAiWardrobeBanner(),
-                const SizedBox(height: 24),
-
-                // 4. Section "Hari ini mau ke mana?"
-                _buildOccasionSection(),
-                const SizedBox(height: 24),
-
-                // 5. Section "Rekomendasi Hari Ini"
-                _buildRecommendationSection(recState, clothes),
-                const SizedBox(height: 24),
-              ],
+      backgroundColor: _surface,
+      body: RefreshIndicator(
+        color: _crimson,
+        onRefresh: () async {
+          await ref
+              .read(recommendationProvider.notifier)
+              .recommend(activeOccasion);
+        },
+        child: CustomScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          slivers: [
+            // ── Hero Header (gradient app bar) ──────────────────────────
+            SliverToBoxAdapter(
+              child: _HeroHeader(
+                user: user,
+                greeting: greeting,
+                greetingEmoji: _getGreetingEmoji(),
+                userName: userName,
+                onNotification: _showNotificationBottomSheet,
+                clothes: clothes,
+                fadeAnimation: _headerFade,
+                slideAnimation: _headerSlide,
+              ),
             ),
-          ),
-        ),
-      ),
-    );
-  }
 
-  // ==================== 1. HEADER ====================
-  Widget _buildHeader(dynamic user, String greeting, String userName) {
-    return Row(
-      children: [
-        // Avatar dengan status badge hijau
-        Stack(
-          children: [
-            CircleAvatar(
-              radius: 24,
-              backgroundColor: AppTheme.primaryColor.withValues(alpha: 0.08),
-              backgroundImage: user?.photoUrl != null
-                  ? CachedNetworkImageProvider(user!.photoUrl!)
-                  : null,
-              child: user?.photoUrl == null
-                  ? const Icon(Icons.person, color: AppTheme.primaryColor, size: 26)
-                  : null,
+            // ── Cuaca ────────────────────────────────────────────────────
+            SliverPadding(
+              padding: const EdgeInsets.fromLTRB(18, 20, 18, 0),
+              sliver: SliverToBoxAdapter(
+                child: _WeatherBadgeCard(onTap: _showWeatherDetailModal),
+              ),
             ),
-            Positioned(
-              right: 1,
-              bottom: 1,
-              child: Container(
-                width: 12,
-                height: 12,
-                decoration: BoxDecoration(
-                  color: const Color(0xFF27AE60),
-                  shape: BoxShape.circle,
-                  border: Border.all(color: Colors.white, width: 2),
+
+            // ── Banner Tambah Pakaian ────────────────────────────────────
+            SliverPadding(
+              padding: const EdgeInsets.fromLTRB(18, 14, 18, 0),
+              sliver: SliverToBoxAdapter(
+                child: ScaleTransition(
+                  scale: _cardPulse,
+                  child: _AddClothesBanner(context: context),
                 ),
               ),
             ),
-          ],
-        ),
-        const SizedBox(width: 14),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                greeting,
-                style: const TextStyle(
-                  fontSize: 13,
-                  color: Color(0xFF757575),
-                  fontWeight: FontWeight.w400,
-                ),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                'Halo, $userName!',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                  color: AppTheme.textPrimary,
-                ),
-              ),
-            ],
-          ),
-        ),
-        // Tombol lonceng notifikasi
-        Container(
-          width: 44,
-          height: 44,
-          decoration: BoxDecoration(
-            color: Colors.white,
-            shape: BoxShape.circle,
-            border: Border.all(color: const Color(0xFFEEF0F2)),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.02),
-                blurRadius: 8,
-                offset: const Offset(0, 2),
-              ),
-            ],
-          ),
-          child: IconButton(
-            padding: EdgeInsets.zero,
-            icon: const Icon(
-              Icons.notifications_none_rounded,
-              color: Color(0xFF2C3E50),
-              size: 22,
-            ),
-            onPressed: _showNotificationBottomSheet,
-          ),
-        ),
-      ],
-    );
-  }
 
-  // ==================== 2. WEATHER CARD ====================
-  Widget _buildWeatherCard() {
-    return GestureDetector(
-      onTap: _showWeatherDetailModal,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: const Color(0xFFEEF0F2)),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.02),
-              blurRadius: 8,
-              offset: const Offset(0, 2),
-            ),
-          ],
-        ),
-        child: Row(
-          children: [
-            Container(
-              width: 42,
-              height: 42,
-              decoration: const BoxDecoration(
-                color: Color(0xFFFFF4F2),
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(
-                Icons.wb_sunny_outlined,
-                color: AppTheme.primaryColor,
-                size: 22,
+            // ── Section Agenda ───────────────────────────────────────────
+            SliverPadding(
+              padding: const EdgeInsets.fromLTRB(18, 24, 18, 0),
+              sliver: SliverToBoxAdapter(
+                child: _buildOccasionSection(),
               ),
             ),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      const Text(
-                        '28°C Cerah',
-                        style: TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.bold,
-                          color: AppTheme.textPrimary,
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 8, vertical: 2),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFEEF2F9),
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: const Text(
-                          'Jakarta Selatan',
-                          style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w500,
-                            color: Color(0xFF3B5998),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 3),
-                  const Text(
-                    'Pas untuk kemeja katun sejuk & celana linen.',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: 12.5,
-                      color: Color(0xFF757575),
-                    ),
-                  ),
-                ],
+
+            // ── Section Rekomendasi ──────────────────────────────────────
+            SliverPadding(
+              padding: const EdgeInsets.fromLTRB(18, 24, 18, 32),
+              sliver: SliverToBoxAdapter(
+                child: _buildRecommendationSection(recState, clothes),
               ),
-            ),
-            const Icon(
-              Icons.chevron_right_rounded,
-              color: Color(0xFF9E9E9E),
-              size: 20,
             ),
           ],
         ),
@@ -369,160 +280,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     );
   }
 
-  // ==================== 3. LEMARI DIGITAL AI BANNER ====================
-  Widget _buildAiWardrobeBanner() {
-    return Container(
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: const Color(0xFFEEF0F2)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.02),
-            blurRadius: 10,
-            offset: const Offset(0, 3),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Tag & Icon Hanger
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFFDE8E8),
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: const Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      Icons.auto_awesome,
-                      size: 12,
-                      color: AppTheme.primaryColor,
-                    ),
-                    SizedBox(width: 4),
-                    Text(
-                      'Lemari Digital AI',
-                      style: TextStyle(
-                        fontSize: 11.5,
-                        fontWeight: FontWeight.bold,
-                        color: AppTheme.primaryColor,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              Container(
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(
-                    color: AppTheme.primaryColor.withValues(alpha: 0.3),
-                  ),
-                ),
-                child: const Icon(
-                  Icons.checkroom_outlined,
-                  color: AppTheme.primaryColor,
-                  size: 22,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-
-          // Teks Judul & Subtitle
-          const Text(
-            'Tambah Pakaian ke Lemari',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: AppTheme.textPrimary,
-            ),
-          ),
-          const SizedBox(height: 4),
-          const Text(
-            'Foto baju kamu, biar AI PakeAja yang cocokin.',
-            style: TextStyle(
-              fontSize: 13,
-              color: Color(0xFF757575),
-            ),
-          ),
-          const SizedBox(height: 16),
-
-          // Tombol Ambil Foto & Pilih Galeri
-          Row(
-            children: [
-              Expanded(
-                child: SizedBox(
-                  height: 44,
-                  child: ElevatedButton.icon(
-                    onPressed: () => context.push('/cloth/add?source=camera'),
-                    icon: const Icon(Icons.photo_camera_outlined,
-                        size: 18, color: Colors.white),
-                    label: const Text(
-                      'Ambil Foto',
-                      style: TextStyle(
-                        fontSize: 13.5,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                      ),
-                    ),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppTheme.primaryColor,
-                      elevation: 0,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: SizedBox(
-                  height: 44,
-                  child: OutlinedButton.icon(
-                    onPressed: () => context.push('/cloth/add?source=gallery'),
-                    icon: const Icon(Icons.image_outlined,
-                        size: 18, color: Color(0xFF2C3E50)),
-                    label: const Text(
-                      'Pilih Galeri',
-                      style: TextStyle(
-                        fontSize: 13.5,
-                        fontWeight: FontWeight.bold,
-                        color: Color(0xFF2C3E50),
-                      ),
-                    ),
-                    style: OutlinedButton.styleFrom(
-                      backgroundColor: Colors.white,
-                      side: const BorderSide(
-                          color: Color(0xFFE2E4E8), width: 1.2),
-                      elevation: 0,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  // ==================== 4. OCCASION SECTION ====================
+  // ==================== OCCASION SECTION ====================
   Widget _buildOccasionSection() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -531,21 +289,30 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             const Text(
-              'Hari ini mau ke mana?',
+              'Mau ke mana hari ini?',
               style: TextStyle(
-                fontSize: 22,
+                fontSize: 20,
                 fontWeight: FontWeight.bold,
-                color: AppTheme.textPrimary,
+                color: _textPrimary,
+                letterSpacing: -0.3,
               ),
             ),
             GestureDetector(
               onTap: _showAllOccasionsModal,
-              child: const Text(
-                'Semua',
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  color: AppTheme.primaryColor,
+              child: Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+                decoration: BoxDecoration(
+                  color: _crimson.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: const Text(
+                  'Semua',
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                    color: _crimson,
+                  ),
                 ),
               ),
             ),
@@ -553,14 +320,78 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         ),
         const SizedBox(height: 4),
         const Text(
-          'Pilih agenda kamu, biar PakeAja racik outfit terbaik dari lemarimu.',
+          'Pilih agenda, PakeAja racik outfit terbaik dari lemarimu.',
           style: TextStyle(
             fontSize: 13,
-            color: Color(0xFF757575),
-            height: 1.35,
+            color: _textSecondary,
+            height: 1.4,
           ),
         ),
         const SizedBox(height: 16),
+        // Horizontal scroll chips
+        SizedBox(
+          height: 46,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            itemCount: _occasions.length,
+            separatorBuilder: (_, __) => const SizedBox(width: 10),
+            itemBuilder: (context, i) {
+              final occ = _occasions[i];
+              final label = occ['label'] as String;
+              final isSelected = _selectedOccasion == label;
+              final gradColors = occ['gradient'] as List<Color>;
+
+              return GestureDetector(
+                onTap: () => _onOccasionSelected(label),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 220),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                  decoration: BoxDecoration(
+                    gradient: isSelected
+                        ? LinearGradient(colors: gradColors)
+                        : null,
+                    color: isSelected ? null : _cardBg,
+                    borderRadius: BorderRadius.circular(23),
+                    border: Border.all(
+                      color: isSelected ? Colors.transparent : _divider,
+                      width: 1.2,
+                    ),
+                    boxShadow: isSelected
+                        ? [
+                            BoxShadow(
+                              color: gradColors.first.withValues(alpha: 0.35),
+                              blurRadius: 10,
+                              offset: const Offset(0, 4),
+                            ),
+                          ]
+                        : [],
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        occ['emoji'] as String,
+                        style: const TextStyle(fontSize: 16),
+                      ),
+                      const SizedBox(width: 7),
+                      Text(
+                        label,
+                        style: TextStyle(
+                          fontSize: 13.5,
+                          fontWeight: FontWeight.w700,
+                          color: isSelected ? Colors.white : _textPrimary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+        const SizedBox(height: 16),
+        // Grid cards for occasions
         GridView.builder(
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
@@ -568,55 +399,47 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             crossAxisCount: 3,
             mainAxisSpacing: 12,
             crossAxisSpacing: 12,
-            childAspectRatio: 0.88,
+            childAspectRatio: 0.86,
           ),
           itemCount: _occasions.length,
           itemBuilder: (context, index) {
             final occ = _occasions[index];
             final label = occ['label'] as String;
             final isSelected = _selectedOccasion == label;
+            final gradColors = occ['gradient'] as List<Color>;
 
             return GestureDetector(
               onTap: () => _onOccasionSelected(label),
               child: AnimatedContainer(
-                duration: const Duration(milliseconds: 200),
+                duration: const Duration(milliseconds: 220),
                 decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(16),
+                  color: _cardBg,
+                  borderRadius: BorderRadius.circular(18),
                   border: Border.all(
-                    color: isSelected
-                        ? AppTheme.primaryColor
-                        : const Color(0xFFEEF0F2),
-                    width: isSelected ? 1.5 : 1,
+                    color: isSelected ? gradColors.first : _divider,
+                    width: isSelected ? 2 : 1,
                   ),
-                  boxShadow: isSelected
-                      ? [
-                          BoxShadow(
-                            color: AppTheme.primaryColor.withValues(alpha: 0.08),
-                            blurRadius: 8,
-                            offset: const Offset(0, 2),
-                          ),
-                        ]
-                      : [
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.015),
-                            blurRadius: 4,
-                            offset: const Offset(0, 1),
-                          ),
-                        ],
+                  boxShadow: [
+                    BoxShadow(
+                      color: isSelected
+                          ? gradColors.first.withValues(alpha: 0.15)
+                          : Colors.black.withValues(alpha: 0.03),
+                      blurRadius: isSelected ? 12 : 6,
+                      offset: const Offset(0, 3),
+                    ),
+                  ],
                 ),
                 child: Stack(
                   children: [
-                    // Titik badge merah di pojok kanan atas jika terpilih
                     if (isSelected)
                       Positioned(
                         top: 8,
                         right: 8,
                         child: Container(
-                          width: 7,
-                          height: 7,
-                          decoration: const BoxDecoration(
-                            color: AppTheme.primaryColor,
+                          width: 8,
+                          height: 8,
+                          decoration: BoxDecoration(
+                            color: gradColors.first,
                             shape: BoxShape.circle,
                           ),
                         ),
@@ -628,45 +451,48 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            Container(
-                              width: 44,
-                              height: 44,
+                            AnimatedContainer(
+                              duration: const Duration(milliseconds: 220),
+                              width: 46,
+                              height: 46,
                               decoration: BoxDecoration(
-                                color: isSelected
-                                    ? AppTheme.primaryColor
-                                    : const Color(0xFFF7F8FA),
+                                gradient: isSelected
+                                    ? LinearGradient(
+                                        colors: gradColors,
+                                        begin: Alignment.topLeft,
+                                        end: Alignment.bottomRight,
+                                      )
+                                    : null,
+                                color:
+                                    isSelected ? null : const Color(0xFFF4F5F7),
                                 shape: BoxShape.circle,
                               ),
-                              child: Icon(
-                                occ['icon'] as IconData,
-                                color: isSelected
-                                    ? Colors.white
-                                    : const Color(0xFF5A626A),
-                                size: 22,
+                              child: Center(
+                                child: Text(
+                                  occ['emoji'] as String,
+                                  style: const TextStyle(fontSize: 22),
+                                ),
                               ),
                             ),
-                            const SizedBox(height: 10),
+                            const SizedBox(height: 9),
                             Text(
                               label,
                               textAlign: TextAlign.center,
-                              style: const TextStyle(
-                                fontSize: 13.5,
+                              style: TextStyle(
+                                fontSize: 12.5,
                                 fontWeight: FontWeight.bold,
-                                color: AppTheme.textPrimary,
+                                color: isSelected
+                                    ? gradColors.first
+                                    : _textPrimary,
                               ),
                             ),
                             const SizedBox(height: 2),
                             Text(
                               occ['subtitle'] as String,
                               textAlign: TextAlign.center,
-                              style: TextStyle(
-                                fontSize: 11,
-                                fontWeight: isSelected
-                                    ? FontWeight.w600
-                                    : FontWeight.w400,
-                                color: isSelected
-                                    ? AppTheme.primaryColor
-                                    : const Color(0xFF8E959E),
+                              style: const TextStyle(
+                                fontSize: 10.5,
+                                color: _textSecondary,
                               ),
                             ),
                           ],
@@ -683,7 +509,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     );
   }
 
-  // ==================== 5. REKOMENDASI SECTION ====================
+  // ==================== RECOMMENDATION SECTION ====================
   Widget _buildRecommendationSection(
     RecommendationState recState,
     List<ClothModel> clothes,
@@ -694,30 +520,44 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         'label': _selectedOccasion,
         'tag': 'Untuk $_selectedOccasion',
         'styleNote': 'Gaya Pilihan',
+        'gradient': [_crimson, _crimsonLight],
+        'emoji': '👗',
       },
     );
+    final gradColors = currentOccData['gradient'] as List<Color>;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Header "Rekomendasi Hari Ini" + Badge "% Cocok"
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            const Row(
+            Row(
               children: [
-                Icon(
-                  Icons.auto_awesome,
-                  color: AppTheme.primaryColor,
-                  size: 19,
+                Container(
+                  width: 32,
+                  height: 32,
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: gradColors,
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Center(
+                    child: Icon(Icons.auto_awesome,
+                        size: 17, color: Colors.white),
+                  ),
                 ),
-                SizedBox(width: 6),
-                Text(
+                const SizedBox(width: 10),
+                const Text(
                   'Rekomendasi Hari Ini',
                   style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
-                    color: AppTheme.textPrimary,
+                    color: _textPrimary,
+                    letterSpacing: -0.3,
                   ),
                 ),
               ],
@@ -725,7 +565,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             if (recState.recommendation != null)
               Container(
                 padding:
-                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                 decoration: BoxDecoration(
                   color: const Color(0xFFE2F7EB),
                   borderRadius: BorderRadius.circular(20),
@@ -751,17 +591,20 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         ),
         const SizedBox(height: 14),
 
-        // Kartu Utama Rekomendasi
+        // Kartu Rekomendasi dengan gradient header
         Container(
-          padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(18),
-            border: Border.all(color: const Color(0xFFEEF0F2)),
+            color: _cardBg,
+            borderRadius: BorderRadius.circular(22),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withValues(alpha: 0.02),
-                blurRadius: 8,
+                color: gradColors.first.withValues(alpha: 0.08),
+                blurRadius: 20,
+                offset: const Offset(0, 6),
+              ),
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.03),
+                blurRadius: 6,
                 offset: const Offset(0, 2),
               ),
             ],
@@ -769,110 +612,113 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Row Tags & Tombol Acak Ulang
-              Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 12, vertical: 5),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFF1F3F5),
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    child: Text(
-                      currentOccData['tag'] as String,
-                      style: const TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w500,
-                        color: Color(0xFF495057),
-                      ),
-                    ),
+              // Gradient header strip
+              Container(
+                padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [
+                      gradColors.first.withValues(alpha: 0.12),
+                      gradColors.last.withValues(alpha: 0.05),
+                    ],
                   ),
-                  const SizedBox(width: 8),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 12, vertical: 5),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFF1F3F5),
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    child: Text(
-                      currentOccData['styleNote'] as String,
-                      style: const TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w500,
-                        color: Color(0xFF495057),
+                  borderRadius:
+                      const BorderRadius.vertical(top: Radius.circular(22)),
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 11, vertical: 5),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(
+                          color: gradColors.first.withValues(alpha: 0.3),
+                        ),
+                      ),
+                      child: Text(
+                        '${currentOccData['emoji']}  ${currentOccData['tag']}',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: gradColors.first,
+                        ),
                       ),
                     ),
-                  ),
-                  const Spacer(),
-                  InkWell(
-                    onTap: () {
-                      ref
-                          .read(recommendationProvider.notifier)
-                          .reshuffle(_selectedOccasion);
-                    },
-                    borderRadius: BorderRadius.circular(20),
-                    child: Container(
-                      width: 34,
-                      height: 34,
-                      decoration: const BoxDecoration(
-                        color: Color(0xFFF4F5F7),
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(
-                        Icons.sync_rounded,
-                        size: 19,
-                        color: Color(0xFF495057),
+                    const Spacer(),
+                    // Tombol acak ulang
+                    InkWell(
+                      onTap: () {
+                        ref
+                            .read(recommendationProvider.notifier)
+                            .reshuffle(_selectedOccasion);
+                      },
+                      borderRadius: BorderRadius.circular(20),
+                      child: Container(
+                        width: 36,
+                        height: 36,
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          shape: BoxShape.circle,
+                          border: Border.all(color: _divider),
+                        ),
+                        child: const Icon(
+                          Icons.sync_rounded,
+                          size: 18,
+                          color: _textSecondary,
+                        ),
                       ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-              const SizedBox(height: 16),
 
-              // Konten Rekomendasi
-              if (recState.isLoading)
-                const Padding(
-                  padding: EdgeInsets.symmetric(vertical: 32),
-                  child: Center(
-                    child: Column(
-                      children: [
-                        SizedBox(
-                          width: 24,
-                          height: 24,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2.5,
-                            valueColor: AlwaysStoppedAnimation<Color>(
-                                AppTheme.primaryColor),
-                          ),
-                        ),
-                        SizedBox(height: 12),
-                        Text(
-                          'AI sedang meracik paduan outfit terbaik...',
-                          style: TextStyle(
-                            fontSize: 13,
-                            color: Color(0xFF757575),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                )
-              else if (!_hasEnoughClothes(clothes))
-                _buildMissingClothesChecklist(clothes)
-              else if (recState.error != null)
-                _buildIncompatibleOccasionCard(
-                    recState.error!, _selectedOccasion)
-              else if (recState.recommendation != null)
-                _buildRecommendationContent(
-                    recState.recommendation!, clothes)
-              else
-                _buildEmptyRecommendation(),
+              // Konten
+              Padding(
+                padding: const EdgeInsets.all(16),
+                child: recState.isLoading
+                    ? _buildLoadingState()
+                    : !_hasEnoughClothes(clothes)
+                        ? _buildMissingClothesChecklist(clothes)
+                        : recState.error != null
+                            ? _buildIncompatibleOccasionCard(
+                                recState.error!, _selectedOccasion)
+                            : recState.recommendation != null
+                                ? _buildRecommendationContent(
+                                    recState.recommendation!, clothes)
+                                : _buildEmptyRecommendation(),
+              ),
             ],
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildLoadingState() {
+    return const Padding(
+      padding: EdgeInsets.symmetric(vertical: 36),
+      child: Center(
+        child: Column(
+          children: [
+            SizedBox(
+              width: 28,
+              height: 28,
+              child: CircularProgressIndicator(
+                strokeWidth: 2.5,
+                valueColor:
+                    AlwaysStoppedAnimation<Color>(_crimson),
+              ),
+            ),
+            SizedBox(height: 14),
+            Text(
+              'AI sedang meracik paduan outfit terbaik…',
+              style: TextStyle(fontSize: 13, color: _textSecondary),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -884,7 +730,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: const Color(0xFFFDF2F2),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(14),
         border: Border.all(color: const Color(0xFFFAD1D1)),
       ),
       child: Column(
@@ -892,8 +738,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         children: [
           Row(
             children: [
-              const Icon(Icons.style_outlined,
-                  color: AppTheme.primaryColor, size: 18),
+              const Icon(Icons.style_outlined, color: _crimson, size: 18),
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
@@ -901,7 +746,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   style: const TextStyle(
                     fontWeight: FontWeight.bold,
                     fontSize: 13.5,
-                    color: AppTheme.textPrimary,
+                    color: _textPrimary,
                   ),
                 ),
               ),
@@ -923,15 +768,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 child: OutlinedButton(
                   onPressed: () => context.push('/cloth/add'),
                   style: OutlinedButton.styleFrom(
-                    side: const BorderSide(color: AppTheme.primaryColor),
+                    side: const BorderSide(color: _crimson),
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
+                      borderRadius: BorderRadius.circular(10),
                     ),
                   ),
                   child: Text(
                     'Tambah Pakaian $occasion',
                     style: const TextStyle(
-                      color: AppTheme.primaryColor,
+                      color: _crimson,
                       fontWeight: FontWeight.w600,
                       fontSize: 12.5,
                     ),
@@ -942,10 +787,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 const SizedBox(width: 8),
                 TextButton(
                   onPressed: () => _onOccasionSelected('Santai'),
-                  child: const Text(
-                    'Coba Santai',
-                    style: TextStyle(fontSize: 12.5),
-                  ),
+                  child: const Text('Coba Santai',
+                      style: TextStyle(fontSize: 12.5)),
                 ),
               ],
             ],
@@ -972,7 +815,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: const Color(0xFFFFF9E6),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(14),
         border: Border.all(color: const Color(0xFFFFE082)),
       ),
       child: Column(
@@ -1006,7 +849,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               style: OutlinedButton.styleFrom(
                 side: const BorderSide(color: Color(0xFFD97706)),
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: BorderRadius.circular(10),
                 ),
               ),
               child: const Text(
@@ -1052,34 +895,34 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
   Widget _buildEmptyRecommendation() {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 20),
+      padding: const EdgeInsets.symmetric(vertical: 24),
       child: Center(
         child: Column(
           children: [
             const Icon(Icons.checkroom_outlined,
-                size: 36, color: Color(0xFFBDBDBD)),
-            const SizedBox(height: 8),
+                size: 40, color: Color(0xFFBDBDBD)),
+            const SizedBox(height: 10),
             const Text(
               'Belum ada rekomendasi outfit yang dibuat.',
-              style: TextStyle(color: Color(0xFF757575), fontSize: 13),
+              style: TextStyle(color: _textSecondary, fontSize: 13),
             ),
-            const SizedBox(height: 10),
-            ElevatedButton(
+            const SizedBox(height: 12),
+            ElevatedButton.icon(
               onPressed: () {
                 ref
                     .read(recommendationProvider.notifier)
                     .recommend(_selectedOccasion);
               },
+              icon: const Icon(Icons.auto_awesome,
+                  size: 16, color: Colors.white),
+              label: const Text('Racik Sekarang',
+                  style: TextStyle(color: Colors.white, fontSize: 13)),
               style: ElevatedButton.styleFrom(
-                backgroundColor: AppTheme.primaryColor,
+                backgroundColor: _crimson,
                 elevation: 0,
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10),
+                  borderRadius: BorderRadius.circular(12),
                 ),
-              ),
-              child: const Text(
-                'Racik Sekarang',
-                style: TextStyle(color: Colors.white, fontSize: 13),
               ),
             ),
           ],
@@ -1099,24 +942,35 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Tampilan Kartu Visual Pakaian yang direkomendasikan
+        // Clothes display
         Container(
-          padding: const EdgeInsets.all(12),
+          padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(
-            color: const Color(0xFFFAFAFB),
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: const Color(0xFFEEF0F2)),
+            color: const Color(0xFFF9FAFB),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: _divider),
           ),
           child: Column(
             children: [
               for (var i = 0; i < items.length; i++) ...[
                 if (i > 0)
                   const Padding(
-                    padding: EdgeInsets.symmetric(vertical: 4),
-                    child: Icon(
-                      Icons.keyboard_arrow_down_rounded,
-                      size: 18,
-                      color: Color(0xFFBDBDBD),
+                    padding: EdgeInsets.symmetric(vertical: 6),
+                    child: Row(
+                      children: [
+                        Expanded(
+                            child: Divider(height: 1, color: Color(0xFFEEF0F2))),
+                        Padding(
+                          padding: EdgeInsets.symmetric(horizontal: 8),
+                          child: Icon(
+                            Icons.add_circle_outline,
+                            size: 16,
+                            color: Color(0xFFCBCDD2),
+                          ),
+                        ),
+                        Expanded(
+                            child: Divider(height: 1, color: Color(0xFFEEF0F2))),
+                      ],
                     ),
                   ),
                 _buildClothItemRow(items[i]),
@@ -1126,56 +980,73 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         ),
         const SizedBox(height: 16),
 
-        // Tombol Aksi Cepat
+        // Tombol aksi
         Row(
           children: [
             Expanded(
               child: SizedBox(
-                height: 42,
-                child: ElevatedButton.icon(
-                  onPressed: () => _wearOutfit(rec),
-                  icon: const Icon(Icons.check_circle_outline,
-                      size: 17, color: Colors.white),
-                  label: const Text(
-                    'Pakai Hari Ini',
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
+                height: 44,
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [_crimson, _crimsonLight],
                     ),
+                    borderRadius: BorderRadius.circular(12),
+                    boxShadow: [
+                      BoxShadow(
+                        color: _crimson.withValues(alpha: 0.3),
+                        blurRadius: 10,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
                   ),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppTheme.primaryColor,
-                    elevation: 0,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
+                  child: ElevatedButton.icon(
+                    onPressed: () => _wearOutfit(rec),
+                    icon: const Icon(Icons.check_circle_outline,
+                        size: 17, color: Colors.white),
+                    label: const Text(
+                      'Pakai Hari Ini',
+                      style: TextStyle(
+                        fontSize: 13.5,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
+                    ),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.transparent,
+                      shadowColor: Colors.transparent,
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
                     ),
                   ),
                 ),
               ),
             ),
-            const SizedBox(width: 8),
+            const SizedBox(width: 10),
             SizedBox(
-              height: 42,
+              height: 44,
+              width: 48,
               child: OutlinedButton(
                 onPressed: () => _saveFavorite(rec),
                 style: OutlinedButton.styleFrom(
-                  side: const BorderSide(color: Color(0xFFE2E4E8)),
+                  side: const BorderSide(color: _divider, width: 1.5),
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10),
+                    borderRadius: BorderRadius.circular(12),
                   ),
-                  padding: const EdgeInsets.symmetric(horizontal: 14),
+                  padding: EdgeInsets.zero,
                 ),
                 child: const Icon(
                   Icons.favorite_border_rounded,
                   size: 20,
-                  color: AppTheme.primaryColor,
+                  color: _crimson,
                 ),
               ),
             ),
           ],
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 10),
         Center(
           child: TextButton(
             onPressed: () {
@@ -1191,15 +1062,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   style: TextStyle(
                     fontSize: 12.5,
                     fontWeight: FontWeight.w600,
-                    color: AppTheme.primaryColor,
+                    color: _crimson,
                   ),
                 ),
                 SizedBox(width: 4),
-                Icon(
-                  Icons.arrow_forward_rounded,
-                  size: 14,
-                  color: AppTheme.primaryColor,
-                ),
+                Icon(Icons.arrow_forward_rounded, size: 14, color: _crimson),
               ],
             ),
           ),
@@ -1211,11 +1078,19 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   Widget _buildClothItemRow(ClothModel item) {
     return Row(
       children: [
-        ClothImageView(
-          imageUrl: item.imageUrl,
-          width: 52,
-          height: 52,
-          borderRadius: BorderRadius.circular(8),
+        ClipRRect(
+          borderRadius: BorderRadius.circular(10),
+          child: Container(
+            width: 54,
+            height: 54,
+            color: Colors.white,
+            child: ClothImageView(
+              imageUrl: item.imageUrl,
+              width: 54,
+              height: 54,
+              borderRadius: BorderRadius.circular(10),
+            ),
+          ),
         ),
         const SizedBox(width: 12),
         Expanded(
@@ -1229,17 +1104,17 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 style: const TextStyle(
                   fontWeight: FontWeight.bold,
                   fontSize: 14,
-                  color: AppTheme.textPrimary,
+                  color: _textPrimary,
                 ),
               ),
-              const SizedBox(height: 2),
+              const SizedBox(height: 4),
               Row(
                 children: [
                   Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 6, vertical: 2),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
                     decoration: BoxDecoration(
-                      color: AppTheme.primaryColor.withValues(alpha: 0.08),
+                      color: _crimson.withValues(alpha: 0.08),
                       borderRadius: BorderRadius.circular(6),
                     ),
                     child: Text(
@@ -1247,7 +1122,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       style: const TextStyle(
                         fontSize: 11,
                         fontWeight: FontWeight.w600,
-                        color: AppTheme.primaryColor,
+                        color: _crimson,
                       ),
                     ),
                   ),
@@ -1255,9 +1130,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   Text(
                     item.colorLabel,
                     style: const TextStyle(
-                      fontSize: 12,
-                      color: Color(0xFF757575),
-                    ),
+                        fontSize: 12, color: _textSecondary),
                   ),
                 ],
               ),
@@ -1303,7 +1176,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     showModalBottomSheet(
       context: context,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       builder: (context) {
         return SafeArea(
@@ -1321,7 +1194,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       style: TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
-                        color: AppTheme.textPrimary,
+                        color: _textPrimary,
                       ),
                     ),
                     IconButton(
@@ -1335,8 +1208,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
                     color: const Color(0xFFF8F9FA),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: const Color(0xFFEEF0F2)),
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: _divider),
                   ),
                   child: const Row(
                     children: [
@@ -1359,7 +1232,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                               'Semua rekomendasi pakaian sudah diperbarui sesuai kondisi cuaca hari ini.',
                               style: TextStyle(
                                 fontSize: 12.5,
-                                color: Color(0xFF757575),
+                                color: _textSecondary,
                               ),
                             ),
                           ],
@@ -1381,7 +1254,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     showModalBottomSheet(
       context: context,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       builder: (context) {
         return SafeArea(
@@ -1393,15 +1266,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               children: [
                 const Row(
                   children: [
-                    Icon(Icons.wb_sunny_rounded,
-                        color: AppTheme.primaryColor, size: 28),
+                    Icon(Icons.wb_sunny_rounded, color: _crimson, size: 28),
                     SizedBox(width: 10),
                     Text(
                       'Cuaca & Saran Busana',
                       style: TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
-                        color: AppTheme.textPrimary,
+                        color: _textPrimary,
                       ),
                     ),
                   ],
@@ -1416,7 +1288,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   'Kondisi cuaca hari ini hangat dengan kelembapan sedang. Sangat disarankan memakai pakaian berbahan katun, linen, atau rajutan tipis dengan warna terang agar tidak menyerap panas berlebih.',
                   style: TextStyle(
                     fontSize: 13,
-                    color: Color(0xFF757575),
+                    color: _textSecondary,
                     height: 1.4,
                   ),
                 ),
@@ -1426,9 +1298,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   child: ElevatedButton(
                     onPressed: () => Navigator.pop(context),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: AppTheme.primaryColor,
+                      backgroundColor: _crimson,
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10),
+                        borderRadius: BorderRadius.circular(12),
                       ),
                     ),
                     child: const Text('Mengerti',
@@ -1448,7 +1320,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       context: context,
       isScrollControlled: true,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       builder: (context) {
         return DraggableScrollableSheet(
@@ -1458,7 +1330,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           expand: false,
           builder: (context, scrollController) {
             return Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -1478,16 +1351,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
-                      color: AppTheme.textPrimary,
+                      color: _textPrimary,
                     ),
                   ),
                   const SizedBox(height: 4),
                   const Text(
                     'AI PakeAja akan menyesuaikan kombinasi pakaian terbaik untuk acara tersebut.',
-                    style: TextStyle(
-                      fontSize: 13,
-                      color: Color(0xFF757575),
-                    ),
+                    style: TextStyle(fontSize: 13, color: _textSecondary),
                   ),
                   const SizedBox(height: 16),
                   Expanded(
@@ -1502,25 +1372,28 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         final item = _occasions[index];
                         final label = item['label'] as String;
                         final isSelected = _selectedOccasion == label;
+                        final gradColors = item['gradient'] as List<Color>;
 
                         return ListTile(
                           contentPadding:
                               const EdgeInsets.symmetric(vertical: 4),
                           leading: Container(
-                            width: 42,
-                            height: 42,
+                            width: 44,
+                            height: 44,
                             decoration: BoxDecoration(
+                              gradient: isSelected
+                                  ? LinearGradient(colors: gradColors)
+                                  : null,
                               color: isSelected
-                                  ? AppTheme.primaryColor
+                                  ? null
                                   : const Color(0xFFF7F8FA),
                               shape: BoxShape.circle,
                             ),
-                            child: Icon(
-                              item['icon'] as IconData,
-                              color: isSelected
-                                  ? Colors.white
-                                  : const Color(0xFF5A626A),
-                              size: 20,
+                            child: Center(
+                              child: Text(
+                                item['emoji'] as String,
+                                style: const TextStyle(fontSize: 20),
+                              ),
                             ),
                           ),
                           title: Text(
@@ -1528,21 +1401,19 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                             style: TextStyle(
                               fontWeight: FontWeight.bold,
                               fontSize: 15,
-                              color: isSelected
-                                  ? AppTheme.primaryColor
-                                  : AppTheme.textPrimary,
+                              color: isSelected ? gradColors.first : _textPrimary,
                             ),
                           ),
                           subtitle: Text(
                             item['subtitle'] as String,
                             style: const TextStyle(
                               fontSize: 12.5,
-                              color: Color(0xFF757575),
+                              color: _textSecondary,
                             ),
                           ),
                           trailing: isSelected
-                              ? const Icon(Icons.check_circle,
-                                  color: AppTheme.primaryColor)
+                              ? Icon(Icons.check_circle,
+                                  color: gradColors.first)
                               : null,
                           onTap: () {
                             Navigator.pop(context);
@@ -1560,4 +1431,539 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       },
     );
   }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// HERO HEADER — Crimson gradient app bar + user greeting
+// ═══════════════════════════════════════════════════════════════════════════
+class _HeroHeader extends StatelessWidget {
+  final dynamic user;
+  final String greeting;
+  final String greetingEmoji;
+  final String userName;
+  final VoidCallback onNotification;
+  final List<ClothModel> clothes;
+  final Animation<double> fadeAnimation;
+  final Animation<Offset> slideAnimation;
+
+  const _HeroHeader({
+    required this.user,
+    required this.greeting,
+    required this.greetingEmoji,
+    required this.userName,
+    required this.onNotification,
+    required this.clothes,
+    required this.fadeAnimation,
+    required this.slideAnimation,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      children: [
+        // Gradient background
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.fromLTRB(20, 20, 20, 48),
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              colors: [Color(0xFFC4202F), Color(0xFFE8392A)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Top row: avatar + greeting + bell
+              FadeTransition(
+                opacity: fadeAnimation,
+                child: SlideTransition(
+                  position: slideAnimation,
+                  child: Row(
+                    children: [
+                      // Avatar
+                      Container(
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                              color: Colors.white.withValues(alpha: 0.6),
+                              width: 2.5),
+                        ),
+                        child: CircleAvatar(
+                          radius: 23,
+                          backgroundColor:
+                              Colors.white.withValues(alpha: 0.2),
+                          backgroundImage: user?.photoUrl != null
+                              ? CachedNetworkImageProvider(user!.photoUrl!)
+                              : null,
+                          child: user?.photoUrl == null
+                              ? const Icon(Icons.person,
+                                  color: Colors.white, size: 24)
+                              : null,
+                        ),
+                      ),
+                      const SizedBox(width: 13),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              '$greeting $greetingEmoji',
+                              style: TextStyle(
+                                fontSize: 13,
+                                color: Colors.white.withValues(alpha: 0.85),
+                                fontWeight: FontWeight.w400,
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              'Halo, $userName!',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                fontSize: 20,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                                letterSpacing: -0.3,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      // Bell button
+                      GestureDetector(
+                        onTap: onNotification,
+                        child: Container(
+                          width: 44,
+                          height: 44,
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.18),
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                              color: Colors.white.withValues(alpha: 0.3),
+                            ),
+                          ),
+                          child: const Icon(
+                            Icons.notifications_none_rounded,
+                            color: Colors.white,
+                            size: 22,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+
+              const SizedBox(height: 20),
+
+              // Stats row
+              FadeTransition(
+                opacity: fadeAnimation,
+                child: Row(
+                  children: [
+                    _StatChip(
+                      icon: Icons.checkroom_outlined,
+                      label: '${clothes.length} Pakaian',
+                    ),
+                    const SizedBox(width: 10),
+                    const _StatChip(
+                      icon: Icons.auto_awesome,
+                      label: 'AI Aktif',
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+
+        // Decorative circles
+        Positioned(
+          right: -30,
+          top: -20,
+          child: Container(
+            width: 140,
+            height: 140,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: Colors.white.withValues(alpha: 0.06),
+            ),
+          ),
+        ),
+        Positioned(
+          right: 30,
+          bottom: 10,
+          child: Container(
+            width: 80,
+            height: 80,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: Colors.white.withValues(alpha: 0.05),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _StatChip extends StatelessWidget {
+  final IconData icon;
+  final String label;
+
+  const _StatChip({required this.icon, required this.label});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.18),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.3)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 15, color: Colors.white),
+          const SizedBox(width: 6),
+          Text(
+            label,
+            style: const TextStyle(
+              fontSize: 12.5,
+              fontWeight: FontWeight.w600,
+              color: Colors.white,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// WEATHER BADGE CARD
+// ═══════════════════════════════════════════════════════════════════════════
+class _WeatherBadgeCard extends StatelessWidget {
+  final VoidCallback onTap;
+  const _WeatherBadgeCard({required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
+        decoration: BoxDecoration(
+          color: _cardBg,
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: _divider),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.03),
+              blurRadius: 10,
+              offset: const Offset(0, 3),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            // Sun icon with radial gradient bg
+            Container(
+              width: 44,
+              height: 44,
+              decoration: const BoxDecoration(
+                gradient: RadialGradient(
+                  colors: [Color(0xFFFFE0B2), Color(0xFFFFF3E0)],
+                ),
+                shape: BoxShape.circle,
+              ),
+              child: const Center(
+                child: Text('☀️', style: TextStyle(fontSize: 22)),
+              ),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      const Text(
+                        '28°C  Cerah',
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.bold,
+                          color: _textPrimary,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFEEF2F9),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: const Text(
+                          'Jakarta Selatan',
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w500,
+                            color: Color(0xFF3B5998),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 3),
+                  const Text(
+                    'Cocok untuk kemeja katun & celana linen.',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(fontSize: 12.5, color: _textSecondary),
+                  ),
+                ],
+              ),
+            ),
+            const Icon(Icons.chevron_right_rounded,
+                color: Color(0xFFBDBDBD), size: 20),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// ADD CLOTHES BANNER — Gradient card dengan visual ilustrasi
+// ═══════════════════════════════════════════════════════════════════════════
+class _AddClothesBanner extends StatelessWidget {
+  final BuildContext context;
+  const _AddClothesBanner({required this.context});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xFFC4202F), Color(0xFFEF5537)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(22),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFFC4202F).withValues(alpha: 0.3),
+            blurRadius: 18,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      child: Stack(
+        children: [
+          // Decorative wardrobe pattern
+          Positioned(
+            right: -10,
+            top: -10,
+            child: CustomPaint(
+              size: const Size(110, 110),
+              painter: _BannerDecorPainter(),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.2),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.auto_awesome,
+                              size: 12, color: Colors.white),
+                          SizedBox(width: 4),
+                          Text(
+                            'Lemari Digital AI',
+                            style: TextStyle(
+                              fontSize: 11.5,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                const Text(
+                  'Tambah Pakaian\nke Lemari Digitalmu',
+                  style: TextStyle(
+                    fontSize: 19,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                    height: 1.25,
+                    letterSpacing: -0.3,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  'Foto baju kamu, biar AI PakeAja yang cocokin.',
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: Colors.white.withValues(alpha: 0.85),
+                  ),
+                ),
+                const SizedBox(height: 18),
+                Row(
+                  children: [
+                    Expanded(
+                      child: SizedBox(
+                        height: 42,
+                        child: ElevatedButton.icon(
+                          onPressed: () =>
+                              context.push('/cloth/add?source=camera'),
+                          icon: const Icon(Icons.photo_camera_outlined,
+                              size: 17, color: _crimson),
+                          label: const Text(
+                            'Ambil Foto',
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.bold,
+                              color: _crimson,
+                            ),
+                          ),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.white,
+                            elevation: 0,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: SizedBox(
+                        height: 42,
+                        child: OutlinedButton.icon(
+                          onPressed: () =>
+                              context.push('/cloth/add?source=gallery'),
+                          icon: Icon(Icons.image_outlined,
+                              size: 17,
+                              color: Colors.white.withValues(alpha: 0.9)),
+                          label: Text(
+                            'Pilih Galeri',
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white.withValues(alpha: 0.9),
+                            ),
+                          ),
+                          style: OutlinedButton.styleFrom(
+                            side: BorderSide(
+                              color: Colors.white.withValues(alpha: 0.5),
+                              width: 1.2,
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _BannerDecorPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = Colors.white.withValues(alpha: 0.08)
+      ..style = PaintingStyle.fill;
+
+    canvas.drawCircle(
+        Offset(size.width * 0.75, size.height * 0.3), 55, paint);
+    canvas.drawCircle(
+        Offset(size.width * 0.5, size.height * 0.9), 30, paint);
+
+    final paint2 = Paint()
+      ..color = Colors.white.withValues(alpha: 0.05)
+      ..style = PaintingStyle.fill;
+    canvas.drawCircle(
+        Offset(size.width * 0.9, size.height * 0.6), 40, paint2);
+
+    // Hanger silhouette
+    final hangerPaint = Paint()
+      ..color = Colors.white.withValues(alpha: 0.15)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2
+      ..strokeCap = StrokeCap.round;
+
+    final cx = size.width * 0.72;
+    final cy = size.height * 0.3;
+    // Hook
+    final hookPath = Path()
+      ..moveTo(cx, cy - 18)
+      ..quadraticBezierTo(cx + 8, cy - 26, cx + 8, cy - 18)
+      ..quadraticBezierTo(cx + 8, cy - 10, cx, cy - 6);
+    canvas.drawPath(hookPath, hangerPaint);
+    // Bar
+    canvas.drawLine(
+        Offset(cx - 24, cy + 8), Offset(cx + 24, cy + 8), hangerPaint);
+    // Left side
+    canvas.drawLine(
+        Offset(cx - 24, cy + 8), Offset(cx - 32, cy + 22), hangerPaint);
+    // Right side
+    canvas.drawLine(
+        Offset(cx + 24, cy + 8), Offset(cx + 32, cy + 22), hangerPaint);
+    // Bottom bar
+    canvas.drawLine(
+        Offset(cx - 32, cy + 22), Offset(cx + 32, cy + 22), hangerPaint);
+
+    // Sparkles
+    _drawSparkle(canvas, Offset(size.width * 0.15, size.height * 0.15), 5,
+        Colors.white.withValues(alpha: 0.3));
+    _drawSparkle(canvas, Offset(size.width * 0.9, size.height * 0.75), 4,
+        Colors.white.withValues(alpha: 0.2));
+  }
+
+  void _drawSparkle(Canvas canvas, Offset center, double r, Color color) {
+    final p = Paint()
+      ..color = color
+      ..strokeWidth = 1.5
+      ..strokeCap = StrokeCap.round;
+    for (var i = 0; i < 4; i++) {
+      final angle = i * math.pi / 2;
+      canvas.drawLine(
+        center,
+        Offset(center.dx + r * math.cos(angle),
+            center.dy + r * math.sin(angle)),
+        p,
+      );
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }

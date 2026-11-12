@@ -6,6 +6,7 @@ import 'package:pakeaja/core/theme/app_theme.dart';
 import 'package:pakeaja/core/utils/date_formatter.dart';
 import 'package:pakeaja/core/utils/error_handler.dart';
 import 'package:pakeaja/core/widgets/cloth_image_view.dart';
+import 'package:pakeaja/core/widgets/menu_hero_header.dart';
 import 'package:pakeaja/core/widgets/state_widgets.dart';
 import 'package:pakeaja/data/models/cloth_model.dart';
 import 'package:pakeaja/data/models/outfit_model.dart';
@@ -143,258 +144,243 @@ class _FavoritesHistoryScreenState extends ConsumerState<FavoritesHistoryScreen>
         .length;
 
     return Scaffold(
-      backgroundColor: AppTheme.backgroundColor,
-      body: SafeArea(
-        child: RefreshIndicator(
-          color: AppTheme.primaryColor,
-          onRefresh: () async {
-            ref.invalidate(favoriteOutfitsProvider);
-            ref.invalidate(outfitHistoryProvider);
-          },
-          child: CustomScrollView(
-            slivers: [
-              // 1. Header (Koleksi Terkurasi, Judul, Search & +Koleksi)
+      backgroundColor: MenuUiColors.surface,
+      body: RefreshIndicator(
+        color: MenuUiColors.crimson,
+        onRefresh: () async {
+          ref.invalidate(favoriteOutfitsProvider);
+          ref.invalidate(outfitHistoryProvider);
+        },
+        child: CustomScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          slivers: [
+            // 1. Hero Header gradasi crimson mengikuti HomeScreen
+            SliverToBoxAdapter(
+              child: _buildHeroHeader(
+                allFavorites: allFavorites,
+                historyOutfits: historyOutfits,
+                clothes: clothes,
+              ),
+            ),
+
+            // Search bar jika sedang aktif
+            if (_isSearching)
               SliverToBoxAdapter(
                 child: Padding(
-                  padding: const EdgeInsets.only(
-                      left: 20, right: 20, top: 16, bottom: 8),
-                  child: _buildHeader(
-                    allFavorites: allFavorites,
-                    historyOutfits: historyOutfits,
-                    clothes: clothes,
-                  ),
-                ),
-              ),
-
-              // Search bar jika sedang aktif
-              if (_isSearching)
-                SliverToBoxAdapter(
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 20, vertical: 8),
-                    child: Container(
-                      height: 44,
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFF4F5F7),
-                        borderRadius: BorderRadius.circular(22),
-                      ),
-                      child: TextField(
-                        controller: _searchController,
-                        autofocus: true,
-                        onChanged: (val) => setState(() => _searchQuery = val),
-                        decoration: InputDecoration(
-                          hintText: 'Cari koleksi outfit atau pakaian...',
-                          hintStyle: const TextStyle(
-                              fontSize: 13, color: Color(0xFF8E959E)),
-                          prefixIcon: const Icon(Icons.search_rounded,
-                              size: 20, color: Color(0xFF8E959E)),
-                          suffixIcon: IconButton(
-                            icon: const Icon(Icons.close_rounded, size: 18),
-                            onPressed: () {
-                              _searchController.clear();
-                              setState(() {
-                                _searchQuery = '';
-                                _isSearching = false;
-                              });
-                            },
-                          ),
-                          border: InputBorder.none,
-                          contentPadding:
-                              const EdgeInsets.symmetric(vertical: 12),
+                  padding: const EdgeInsets.fromLTRB(18, 16, 18, 0),
+                  child: Container(
+                    height: 46,
+                    decoration: BoxDecoration(
+                      color: MenuUiColors.cardBg,
+                      borderRadius: BorderRadius.circular(18),
+                      border: Border.all(color: MenuUiColors.divider),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.03),
+                          blurRadius: 10,
+                          offset: const Offset(0, 3),
                         ),
+                      ],
+                    ),
+                    child: TextField(
+                      controller: _searchController,
+                      autofocus: true,
+                      onChanged: (val) => setState(() => _searchQuery = val),
+                      decoration: InputDecoration(
+                        hintText: 'Cari koleksi outfit atau pakaian...',
+                        hintStyle: const TextStyle(
+                          fontSize: 13,
+                          color: MenuUiColors.textSecondary,
+                        ),
+                        prefixIcon: const Icon(
+                          Icons.search_rounded,
+                          size: 20,
+                          color: MenuUiColors.crimson,
+                        ),
+                        suffixIcon: IconButton(
+                          icon: const Icon(Icons.close_rounded, size: 18),
+                          onPressed: () {
+                            _searchController.clear();
+                            setState(() {
+                              _searchQuery = '';
+                              _isSearching = false;
+                            });
+                          },
+                        ),
+                        border: InputBorder.none,
+                        contentPadding:
+                            const EdgeInsets.symmetric(vertical: 12),
                       ),
                     ),
                   ),
                 ),
-
-              // 2. Category Chips Row (Semua, Kuliah & Kampus, Kafe & Hangout, dll)
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.only(top: 8, bottom: 16),
-                  child: _buildCategoryChips(
-                    allCount: allFavorites.length,
-                    kuliahCount: kuliahCount,
-                    santaiCount: santaiCount,
-                    formalCount: formalCount,
-                  ),
-                ),
               ),
 
-              // 3. Kartu "Rencana Minggu Ini"
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20),
-                  child: _buildWeeklyPlannerCard(
-                    historyOutfits: historyOutfits,
-                    allFavorites: allFavorites,
-                    clothes: clothes,
-                  ),
+            // 2. Category Chips Row
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.only(top: 18, bottom: 16),
+                child: _buildCategoryChips(
+                  allCount: allFavorites.length,
+                  kuliahCount: kuliahCount,
+                  santaiCount: santaiCount,
+                  formalCount: formalCount,
                 ),
               ),
-              const SliverToBoxAdapter(child: SizedBox(height: 22)),
+            ),
 
-              // 4. Section Header "Lookbook Pilihan" & Sort
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Text(
-                        'Lookbook Pilihan',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: AppTheme.textPrimary,
-                        ),
-                      ),
-                      GestureDetector(
-                        onTap: _showSortModal,
-                        child: Text(
-                          _getSortLabel(),
-                          style: const TextStyle(
-                            fontSize: 12.5,
-                            fontWeight: FontWeight.w500,
-                            color: Color(0xFF757575),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              const SliverToBoxAdapter(child: SizedBox(height: 12)),
-
-              // 5. Daftar Outfit Lookbook (Cards)
-              SliverPadding(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                sliver: _buildLookbookList(
-                  favoritesState: favoritesState,
-                  outfits: displayedOutfits,
+            // 3. Kartu "Rencana Minggu Ini"
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 18),
+                child: _buildWeeklyPlannerCard(
+                  historyOutfits: historyOutfits,
+                  allFavorites: allFavorites,
                   clothes: clothes,
                 ),
               ),
+            ),
+            const SliverToBoxAdapter(child: SizedBox(height: 24)),
 
-              const SliverToBoxAdapter(
-                child: SizedBox(height: 50),
+            // 4. Section Header "Lookbook Pilihan" & Sort
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 18),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text(
+                      'Lookbook Pilihan',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: MenuUiColors.textPrimary,
+                        letterSpacing: -0.3,
+                      ),
+                    ),
+                    GestureDetector(
+                      onTap: _showSortModal,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 11, vertical: 5),
+                        decoration: BoxDecoration(
+                          color: MenuUiColors.crimson.withValues(alpha: 0.08),
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Text(
+                          _getSortLabel(),
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                            color: MenuUiColors.crimson,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
-            ],
-          ),
+            ),
+            const SliverToBoxAdapter(child: SizedBox(height: 14)),
+
+            // 5. Daftar Outfit Lookbook (Cards)
+            SliverPadding(
+              padding: const EdgeInsets.symmetric(horizontal: 18),
+              sliver: _buildLookbookList(
+                favoritesState: favoritesState,
+                outfits: displayedOutfits,
+                clothes: clothes,
+              ),
+            ),
+
+            const SliverToBoxAdapter(
+              child: SizedBox(height: 50),
+            ),
+          ],
         ),
       ),
     );
   }
 
-  // ==================== 1. HEADER ====================
-  Widget _buildHeader({
+  // ==================== 1. HERO HEADER ====================
+  Widget _buildHeroHeader({
     required List<OutfitModel> allFavorites,
     required List<OutfitModel> historyOutfits,
     required List<ClothModel> clothes,
   }) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'KOLEKSI TERKURASI',
-                  style: TextStyle(
-                    fontSize: 11.5,
-                    fontWeight: FontWeight.bold,
-                    letterSpacing: 0.8,
-                    color: AppTheme.primaryColor,
-                  ),
-                ),
-                SizedBox(height: 3),
-                Text(
-                  'Outfit Favorit',
-                  style: TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                    color: AppTheme.textPrimary,
-                  ),
-                ),
-              ],
-            ),
-            Row(
-              children: [
-                // Tombol Cari
-                GestureDetector(
-                  onTap: () {
-                    setState(() => _isSearching = !_isSearching);
-                  },
-                  child: Container(
-                    width: 40,
-                    height: 40,
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFF4F5F7),
-                      shape: BoxShape.circle,
-                      border: Border.all(color: const Color(0xFFEEF0F2)),
-                    ),
-                    child: const Icon(
-                      Icons.search_rounded,
-                      color: Color(0xFF2C3E50),
-                      size: 20,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                // Tombol + Koleksi
-                GestureDetector(
-                  onTap: () => _showCreateCollectionModal(
-                    allFavorites: allFavorites,
-                    historyOutfits: historyOutfits,
-                    clothes: clothes,
-                  ),
-                  child: Container(
-                    height: 40,
-                    padding: const EdgeInsets.symmetric(horizontal: 14),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: const Color(0xFFEEF0F2)),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.02),
-                          blurRadius: 4,
-                          offset: const Offset(0, 1),
-                        ),
-                      ],
-                    ),
-                    child: const Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(Icons.add_rounded,
-                            size: 16, color: AppTheme.primaryColor),
-                        SizedBox(width: 4),
-                        Text(
-                          'Koleksi',
-                          style: TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.bold,
-                            color: AppTheme.textPrimary,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-        const SizedBox(height: 4),
-        const Text(
-          'Koleksi padu-padan terbaik yang kamu simpan.',
-          style: TextStyle(
-            fontSize: 13,
-            color: Color(0xFF757575),
+    return MenuHeroHeader(
+      leading: Container(
+        width: 46,
+        height: 46,
+        decoration: BoxDecoration(
+          color: Colors.white.withValues(alpha: 0.2),
+          shape: BoxShape.circle,
+          border: Border.all(
+            color: Colors.white.withValues(alpha: 0.45),
+            width: 2,
           ),
+        ),
+        child: const Center(
+          child: Icon(
+            Icons.favorite_rounded,
+            color: Colors.white,
+            size: 22,
+          ),
+        ),
+      ),
+      subtitle: 'KOLEKSI TERKURASI',
+      uppercaseSubtitle: true,
+      title: 'Outfit Favorit',
+      caption: 'Koleksi padu-padan terbaik yang kamu simpan.',
+      actions: [
+        HeroGlassIconButton(
+          icon: Icons.search_rounded,
+          onTap: () {
+            setState(() => _isSearching = !_isSearching);
+          },
+        ),
+        GestureDetector(
+          onTap: () => _showCreateCollectionModal(
+            allFavorites: allFavorites,
+            historyOutfits: historyOutfits,
+            clothes: clothes,
+          ),
+          child: Container(
+            height: 42,
+            padding: const EdgeInsets.symmetric(horizontal: 14),
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.18),
+              borderRadius: BorderRadius.circular(21),
+              border: Border.all(
+                color: Colors.white.withValues(alpha: 0.3),
+              ),
+            ),
+            child: const Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.add_rounded, size: 17, color: Colors.white),
+                SizedBox(width: 4),
+                Text(
+                  'Koleksi',
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+      statChips: [
+        HeroStatChip(
+          icon: Icons.collections_bookmark_outlined,
+          label: '${allFavorites.length} Lookbook',
+        ),
+        HeroStatChip(
+          icon: Icons.history_rounded,
+          label: '${historyOutfits.length} Riwayat',
         ),
       ],
     );
@@ -415,9 +401,9 @@ class _FavoritesHistoryScreenState extends ConsumerState<FavoritesHistoryScreen>
     ];
 
     return SizedBox(
-      height: 38,
+      height: 40,
       child: ListView.separated(
-        padding: const EdgeInsets.symmetric(horizontal: 20),
+        padding: const EdgeInsets.symmetric(horizontal: 18),
         scrollDirection: Axis.horizontal,
         itemCount: categories.length,
         separatorBuilder: (_, __) => const SizedBox(width: 8),
@@ -430,22 +416,23 @@ class _FavoritesHistoryScreenState extends ConsumerState<FavoritesHistoryScreen>
           return GestureDetector(
             onTap: () => setState(() => _selectedCategory = label),
             child: AnimatedContainer(
-              duration: const Duration(milliseconds: 200),
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 7),
+              duration: const Duration(milliseconds: 220),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               decoration: BoxDecoration(
-                color: isSelected ? const Color(0xFF1E2022) : Colors.white,
-                borderRadius: BorderRadius.circular(20),
+                gradient: isSelected ? MenuUiColors.ctaGradient : null,
+                color: isSelected ? null : MenuUiColors.cardBg,
+                borderRadius: BorderRadius.circular(22),
                 border: Border.all(
-                  color: isSelected
-                      ? const Color(0xFF1E2022)
-                      : const Color(0xFFE5E7EB),
+                  color:
+                      isSelected ? Colors.transparent : MenuUiColors.divider,
+                  width: 1.2,
                 ),
                 boxShadow: isSelected
                     ? [
                         BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.12),
-                          blurRadius: 6,
-                          offset: const Offset(0, 2),
+                          color: MenuUiColors.crimson.withValues(alpha: 0.3),
+                          blurRadius: 10,
+                          offset: const Offset(0, 4),
                         ),
                       ]
                     : null,
@@ -453,9 +440,9 @@ class _FavoritesHistoryScreenState extends ConsumerState<FavoritesHistoryScreen>
               child: Text(
                 '$label ($count)',
                 style: TextStyle(
-                  fontSize: 12.5,
-                  fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-                  color: isSelected ? Colors.white : const Color(0xFF2C3E50),
+                  fontSize: 13,
+                  fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
+                  color: isSelected ? Colors.white : MenuUiColors.textPrimary,
                 ),
               ),
             ),
@@ -463,6 +450,29 @@ class _FavoritesHistoryScreenState extends ConsumerState<FavoritesHistoryScreen>
         },
       ),
     );
+  }
+
+  List<Color> _occasionGradient(String occasion) {
+    final lower = occasion.toLowerCase();
+    if (lower.contains('kuliah')) {
+      return const [Color(0xFF6C63FF), Color(0xFF9B59B6)];
+    }
+    if (lower.contains('santai')) {
+      return const [Color(0xFFFF7043), Color(0xFFFFB74D)];
+    }
+    if (lower.contains('semi')) {
+      return const [Color(0xFF00897B), Color(0xFF4DB6AC)];
+    }
+    if (lower.contains('formal')) {
+      return const [Color(0xFF1565C0), Color(0xFF42A5F5)];
+    }
+    if (lower.contains('olahraga')) {
+      return const [Color(0xFFF44336), Color(0xFFFF7043)];
+    }
+    if (lower.contains('organisasi')) {
+      return const [Color(0xFF5C6BC0), Color(0xFF7986CB)];
+    }
+    return const [MenuUiColors.crimson, MenuUiColors.crimsonLight];
   }
 
   // ==================== 3. RENCANA MINGGU INI ====================
@@ -475,7 +485,6 @@ class _FavoritesHistoryScreenState extends ConsumerState<FavoritesHistoryScreen>
     final dayNames = ['Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab', 'Min'];
     final now = DateTime.now();
 
-    // Hitung berapa hari dalam minggu ini yang memiliki outfit terjadwal secara real-time
     int scheduledCount = 0;
     for (final day in weekDays) {
       if (_getOutfitsForDay(day, historyOutfits, allFavorites).isNotEmpty) {
@@ -484,180 +493,204 @@ class _FavoritesHistoryScreenState extends ConsumerState<FavoritesHistoryScreen>
     }
 
     return Container(
-      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: const Color(0xFFEEF0F2)),
+        color: MenuUiColors.cardBg,
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: MenuUiColors.divider),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.02),
-            blurRadius: 8,
+            color: const Color(0xFF1E8E3E).withValues(alpha: 0.06),
+            blurRadius: 18,
+            offset: const Offset(0, 6),
+          ),
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.03),
+            blurRadius: 6,
             offset: const Offset(0, 2),
           ),
         ],
       ),
       child: Column(
         children: [
-          // Header: Rencana Minggu Ini & Badge Status
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Row(
-                children: [
-                  Container(
-                    width: 36,
-                    height: 36,
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFE2F7EB),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: const Icon(
-                      Icons.date_range_rounded,
-                      color: Color(0xFF1E8E3E),
-                      size: 20,
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'Rencana Minggu Ini',
-                        style: TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.bold,
-                          color: AppTheme.textPrimary,
-                        ),
-                      ),
-                      Text(
-                        '$scheduledCount/7 Outfit Terjadwal',
-                        style: const TextStyle(
-                          fontSize: 12,
-                          color: Color(0xFF757575),
-                        ),
-                      ),
-                    ],
-                  ),
+          // Header strip bergradasi halus mengikuti pola kartu HomeScreen
+          Container(
+            padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [
+                  const Color(0xFF1E8E3E).withValues(alpha: 0.1),
+                  const Color(0xFF27AE60).withValues(alpha: 0.03),
                 ],
               ),
-              Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
-                decoration: BoxDecoration(
-                  color: scheduledCount > 0
-                      ? const Color(0xFFE2F7EB)
-                      : const Color(0xFFF4F5F7),
-                  borderRadius: BorderRadius.circular(12),
+              borderRadius:
+                  const BorderRadius.vertical(top: Radius.circular(22)),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      width: 38,
+                      height: 38,
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          colors: [Color(0xFF1E8E3E), Color(0xFF27AE60)],
+                        ),
+                        borderRadius: BorderRadius.circular(11),
+                      ),
+                      child: const Icon(
+                        Icons.date_range_rounded,
+                        color: Colors.white,
+                        size: 20,
+                      ),
+                    ),
+                    const SizedBox(width: 11),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Rencana Minggu Ini',
+                          style: TextStyle(
+                            fontSize: 15.5,
+                            fontWeight: FontWeight.bold,
+                            color: MenuUiColors.textPrimary,
+                          ),
+                        ),
+                        Text(
+                          '$scheduledCount/7 Outfit Terjadwal',
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: MenuUiColors.textSecondary,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
                 ),
-                child: Text(
-                  scheduledCount > 0 ? 'Aktif' : 'Atur Jadwal',
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.bold,
-                    color: scheduledCount > 0
-                        ? const Color(0xFF167C37)
-                        : const Color(0xFF757575),
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-
-          // Baris 7 Hari Kalender (Sen, Sel, Rab, Kam, Jum, Sab, Min) mengikuti tanggal real
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: List.generate(7, (index) {
-              final day = weekDays[index];
-              final dayName = dayNames[index];
-              final dayOutfits =
-                  _getOutfitsForDay(day, historyOutfits, allFavorites);
-              final isScheduled = dayOutfits.isNotEmpty;
-              final isToday = _isSameDay(day, now);
-
-              return GestureDetector(
-                onTap: () => _onDayTapped(
-                  day: day,
-                  dayOutfits: dayOutfits,
-                  allFavorites: allFavorites,
-                  clothes: clothes,
-                ),
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 200),
-                  width: 42,
-                  height: 64,
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                   decoration: BoxDecoration(
-                    color: isScheduled
-                        ? const Color(0xFFFFF4F4)
-                        : (isToday
-                            ? const Color(0xFFF0F4FF)
-                            : const Color(0xFFF7F8FA)),
+                    color: Colors.white,
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(
-                      color: isScheduled
-                          ? const Color(0xFFFAD1D1)
-                          : (isToday
-                              ? const Color(0xFFB8CEF8)
-                              : Colors.transparent),
-                      width: isToday ? 1.5 : 1,
+                      color: scheduledCount > 0
+                          ? const Color(0xFF1E8E3E).withValues(alpha: 0.3)
+                          : MenuUiColors.divider,
                     ),
                   ),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(
-                        dayName,
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight:
-                              isToday ? FontWeight.bold : FontWeight.w500,
-                          color: isScheduled
-                              ? const Color(0xFF8E959E)
-                              : (isToday
-                                  ? const Color(0xFF1976D2)
-                                  : const Color(0xFF757575)),
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        '${day.day}',
-                        style: TextStyle(
-                          fontSize: 14.5,
-                          fontWeight: FontWeight.bold,
-                          color: isScheduled
-                              ? AppTheme.primaryColor
-                              : (isToday
-                                  ? const Color(0xFF1976D2)
-                                  : const Color(0xFF1E2022)),
-                        ),
-                      ),
-                      const SizedBox(height: 3),
-                      if (isScheduled)
-                        Container(
-                          width: 5,
-                          height: 5,
-                          decoration: const BoxDecoration(
-                            color: AppTheme.primaryColor,
-                            shape: BoxShape.circle,
-                          ),
-                        )
-                      else if (isToday)
-                        Container(
-                          width: 4,
-                          height: 4,
-                          decoration: const BoxDecoration(
-                            color: Color(0xFF1976D2),
-                            shape: BoxShape.circle,
-                          ),
-                        )
-                      else
-                        const SizedBox(height: 5),
-                    ],
+                  child: Text(
+                    scheduledCount > 0 ? 'Aktif' : 'Atur Jadwal',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
+                      color: scheduledCount > 0
+                          ? const Color(0xFF167C37)
+                          : MenuUiColors.textSecondary,
+                    ),
                   ),
                 ),
-              );
-            }),
+              ],
+            ),
+          ),
+
+          // Baris 7 Hari Kalender
+          Padding(
+            padding: const EdgeInsets.fromLTRB(14, 14, 14, 16),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: List.generate(7, (index) {
+                final day = weekDays[index];
+                final dayName = dayNames[index];
+                final dayOutfits =
+                    _getOutfitsForDay(day, historyOutfits, allFavorites);
+                final isScheduled = dayOutfits.isNotEmpty;
+                final isToday = _isSameDay(day, now);
+
+                return GestureDetector(
+                  onTap: () => _onDayTapped(
+                    day: day,
+                    dayOutfits: dayOutfits,
+                    allFavorites: allFavorites,
+                    clothes: clothes,
+                  ),
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 200),
+                    width: 42,
+                    height: 66,
+                    decoration: BoxDecoration(
+                      color: isScheduled
+                          ? const Color(0xFFFFF4F4)
+                          : (isToday
+                              ? const Color(0xFFF0F4FF)
+                              : MenuUiColors.surface),
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(
+                        color: isScheduled
+                            ? MenuUiColors.crimson.withValues(alpha: 0.35)
+                            : (isToday
+                                ? const Color(0xFFB8CEF8)
+                                : MenuUiColors.divider),
+                        width: isToday || isScheduled ? 1.5 : 1,
+                      ),
+                    ),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          dayName,
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight:
+                                isToday ? FontWeight.bold : FontWeight.w500,
+                            color: isScheduled
+                                ? MenuUiColors.crimson
+                                : (isToday
+                                    ? const Color(0xFF1976D2)
+                                    : MenuUiColors.textSecondary),
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          '${day.day}',
+                          style: TextStyle(
+                            fontSize: 14.5,
+                            fontWeight: FontWeight.bold,
+                            color: isScheduled
+                                ? MenuUiColors.crimson
+                                : (isToday
+                                    ? const Color(0xFF1976D2)
+                                    : MenuUiColors.textPrimary),
+                          ),
+                        ),
+                        const SizedBox(height: 3),
+                        if (isScheduled)
+                          Container(
+                            width: 5,
+                            height: 5,
+                            decoration: const BoxDecoration(
+                              color: MenuUiColors.crimson,
+                              shape: BoxShape.circle,
+                            ),
+                          )
+                        else if (isToday)
+                          Container(
+                            width: 4,
+                            height: 4,
+                            decoration: const BoxDecoration(
+                              color: Color(0xFF1976D2),
+                              shape: BoxShape.circle,
+                            ),
+                          )
+                        else
+                          const SizedBox(height: 5),
+                      ],
+                    ),
+                  ),
+                );
+              }),
+            ),
           ),
         ],
       ),
@@ -727,16 +760,10 @@ class _FavoritesHistoryScreenState extends ConsumerState<FavoritesHistoryScreen>
                   style: TextStyle(fontSize: 12.5, color: Color(0xFF757575)),
                 ),
                 const SizedBox(height: 16),
-                ElevatedButton(
+                PakeAjaGradientButton(
                   onPressed: () => context.push('/recommendation'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppTheme.primaryColor,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                  child: const Text('Jelajahi Rekomendasi',
-                      style: TextStyle(color: Colors.white)),
+                  icon: Icons.auto_awesome,
+                  label: 'Jelajahi Rekomendasi',
                 ),
               ],
             ),
@@ -767,58 +794,75 @@ class _FavoritesHistoryScreenState extends ConsumerState<FavoritesHistoryScreen>
     final wearCountText = outfit.wornDates.isNotEmpty
         ? 'Dipakai ${outfit.wornDates.length}×'
         : 'Belum pernah dipakai';
+    final gradColors = _occasionGradient(outfit.occasion);
 
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: const Color(0xFFEEF0F2)),
+        color: MenuUiColors.cardBg,
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: MenuUiColors.divider),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.02),
-            blurRadius: 8,
+            color: gradColors.first.withValues(alpha: 0.08),
+            blurRadius: 18,
+            offset: const Offset(0, 6),
+          ),
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.03),
+            blurRadius: 6,
             offset: const Offset(0, 2),
           ),
         ],
       ),
       child: Material(
         color: Colors.transparent,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(22),
         child: InkWell(
           onTap: () => _showOutfitDetailSheet(outfit, items),
-          borderRadius: BorderRadius.circular(20),
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // 1. Top Badges Row & Heart Button
-                Row(
+          borderRadius: BorderRadius.circular(22),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // 1. Gradient Header Strip + Occasion Tag & Heart Button
+              Container(
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [
+                      gradColors.first.withValues(alpha: 0.12),
+                      gradColors.last.withValues(alpha: 0.04),
+                    ],
+                  ),
+                  borderRadius:
+                      const BorderRadius.vertical(top: Radius.circular(22)),
+                ),
+                child: Row(
                   children: [
-                    // Occasion Tag
                     Container(
                       padding: const EdgeInsets.symmetric(
                           horizontal: 10, vertical: 4),
                       decoration: BoxDecoration(
-                        color: const Color(0xFFF4F5F7),
+                        color: Colors.white,
                         borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: gradColors.first.withValues(alpha: 0.28),
+                        ),
                       ),
                       child: Text(
                         outfit.occasion,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 11.5,
                           fontWeight: FontWeight.bold,
-                          color: Color(0xFF2C3E50),
+                          color: gradColors.first,
                         ),
                       ),
                     ),
                     const SizedBox(width: 8),
-                    // Match Tag
                     Container(
                       padding: const EdgeInsets.symmetric(
                           horizontal: 8, vertical: 4),
                       decoration: BoxDecoration(
-                        color: const Color(0xFFD6F5E3),
+                        color: const Color(0xFFE2F7EB),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: const Row(
@@ -839,74 +883,83 @@ class _FavoritesHistoryScreenState extends ConsumerState<FavoritesHistoryScreen>
                       ),
                     ),
                     const Spacer(),
-                    // Heart Button
                     GestureDetector(
                       onTap: () => _confirmRemoveFavorite(outfit.id),
                       child: Container(
-                        width: 32,
-                        height: 32,
-                        decoration: const BoxDecoration(
-                          color: Color(0xFFFDE8E8),
+                        width: 34,
+                        height: 34,
+                        decoration: BoxDecoration(
+                          color: Colors.white,
                           shape: BoxShape.circle,
+                          border: Border.all(color: MenuUiColors.divider),
                         ),
                         child: const Icon(
                           Icons.favorite_rounded,
                           size: 17,
-                          color: AppTheme.primaryColor,
+                          color: MenuUiColors.crimson,
                         ),
                       ),
                     ),
                   ],
                 ),
-                const SizedBox(height: 14),
+              ),
 
-                // 2. Lookbook Photo Collage / Mosaic
-                _buildPhotoCollage(items),
-                const SizedBox(height: 14),
+              Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // 2. Lookbook Photo Collage / Mosaic
+                    _buildPhotoCollage(items),
+                    const SizedBox(height: 14),
 
-                // 3. Title & Subtitle
-                Text(
-                  title,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: AppTheme.textPrimary,
-                  ),
-                ),
-                const SizedBox(height: 3),
-                Text(
-                  '$savedTime • $wearCountText',
-                  style: const TextStyle(
-                    fontSize: 12,
-                    color: Color(0xFF757575),
-                  ),
-                ),
-                const SizedBox(height: 12),
-
-                // 4. Wrapping Chips Pakaian
-                Wrap(
-                  spacing: 6,
-                  runSpacing: 6,
-                  children: items.map((item) {
-                    return Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 9, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFF4F5F7),
-                        borderRadius: BorderRadius.circular(8),
+                    // 3. Title & Subtitle
+                    Text(
+                      title,
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: MenuUiColors.textPrimary,
                       ),
-                      child: Text(
-                        item.name,
-                        style: const TextStyle(
-                          fontSize: 11.5,
-                          color: Color(0xFF4A5056),
-                        ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      '$savedTime • $wearCountText',
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: MenuUiColors.textSecondary,
                       ),
-                    );
-                  }).toList(),
+                    ),
+                    const SizedBox(height: 12),
+
+                    // 4. Wrapping Chips Pakaian
+                    Wrap(
+                      spacing: 6,
+                      runSpacing: 6,
+                      children: items.map((item) {
+                        return Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 10, vertical: 5),
+                          decoration: BoxDecoration(
+                            color: MenuUiColors.surface,
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(color: MenuUiColors.divider),
+                          ),
+                          child: Text(
+                            item.name,
+                            style: const TextStyle(
+                              fontSize: 11.5,
+                              fontWeight: FontWeight.w500,
+                              color: MenuUiColors.textPrimary,
+                            ),
+                          ),
+                        );
+                      }).toList(),
+                    ),
+                  ],
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
       ),

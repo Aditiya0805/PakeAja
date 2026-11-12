@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:pakeaja/core/providers/service_providers.dart';
 import 'package:pakeaja/core/theme/app_theme.dart';
 import 'package:pakeaja/core/widgets/cloth_image_view.dart';
+import 'package:pakeaja/core/widgets/menu_hero_header.dart';
 import 'package:pakeaja/data/models/cloth_model.dart';
 import 'package:pakeaja/data/models/outfit_model.dart';
 import 'package:pakeaja/features/outfits/providers/outfit_provider.dart';
@@ -33,36 +34,48 @@ class _RecommendationScreenState extends ConsumerState<RecommendationScreen> {
       'occasion': 'Kuliah',
       'sublabel': 'Kuliah & Kafe',
       'icon': Icons.school_rounded,
+      'emoji': '🎓',
+      'gradient': [const Color(0xFF6C63FF), const Color(0xFF9B59B6)],
     },
     {
       'label': 'Santai Hangout',
       'occasion': 'Santai',
       'sublabel': 'Santai & Liburan',
       'icon': Icons.coffee_outlined,
+      'emoji': '☕',
+      'gradient': [const Color(0xFFFF7043), const Color(0xFFFFB74D)],
     },
     {
       'label': 'Formal Presentasi',
       'occasion': 'Formal',
       'sublabel': 'Meeting & Kantor',
       'icon': Icons.work_outline_rounded,
+      'emoji': '💼',
+      'gradient': [const Color(0xFF1565C0), const Color(0xFF42A5F5)],
     },
     {
       'label': 'Semi Formal',
       'occasion': 'Semi Formal',
       'sublabel': 'Smart Casual',
       'icon': Icons.badge_outlined,
+      'emoji': '👔',
+      'gradient': [const Color(0xFF00897B), const Color(0xFF4DB6AC)],
     },
     {
       'label': 'Olahraga Aktif',
       'occasion': 'Olahraga',
       'sublabel': 'Aktivitas Luar',
       'icon': Icons.directions_run_rounded,
+      'emoji': '🏃',
+      'gradient': [const Color(0xFFF44336), const Color(0xFFFF7043)],
     },
     {
       'label': 'Organisasi',
       'occasion': 'Organisasi',
       'sublabel': 'Rapat & Diskusi',
       'icon': Icons.groups_outlined,
+      'emoji': '🤝',
+      'gradient': [const Color(0xFF5C6BC0), const Color(0xFF7986CB)],
     },
   ];
 
@@ -170,198 +183,159 @@ class _RecommendationScreenState extends ConsumerState<RecommendationScreen> {
     }
 
     return Scaffold(
-      backgroundColor: AppTheme.backgroundColor,
-      body: SafeArea(
-        child: RefreshIndicator(
-          color: AppTheme.primaryColor,
-          onRefresh: () async {
-            setState(() => _customSwapped.clear());
-            await ref
-                .read(recommendationProvider.notifier)
-                .recommend(_getOccasionKey());
-          },
-          child: SingleChildScrollView(
-            physics: const AlwaysScrollableScrollPhysics(),
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // 1. Top Bar / Header
-                _buildHeader(),
-                const SizedBox(height: 20),
-
-                // 2. Pilih Agenda Hari Ini
-                _buildAgendaSection(),
-                const SizedBox(height: 18),
-
-                // 3. Recommendation Main Card & Content
-                if (recState.isLoading)
-                  const Padding(
-                    padding: EdgeInsets.symmetric(vertical: 60),
-                    child: Center(
-                      child: Column(
-                        children: [
-                          CircularProgressIndicator(
-                            valueColor: AlwaysStoppedAnimation<Color>(
-                                AppTheme.primaryColor),
-                            strokeWidth: 2.5,
-                          ),
-                          SizedBox(height: 14),
-                          Text(
-                            'AI Stylist sedang memilih padu-padan terbaik...',
-                            style: TextStyle(
-                              fontSize: 13,
-                              color: Color(0xFF757575),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  )
-                else if (!_hasEnoughClothes(clothes))
-                  _buildMissingClothesWidget()
-                else if (recState.error != null)
-                  _buildIncompatibleOccasionWidget(
-                    recState.error!,
-                    _getOccasionKey(),
-                  )
-                else if (recState.recommendation != null)
-                  _buildRecommendationCard(
-                    rec: recState.recommendation!,
-                    clothes: clothes,
-                  )
-                else
-                  _buildEmptyState(),
-
-                const SizedBox(height: 30),
-              ],
+      backgroundColor: MenuUiColors.surface,
+      body: RefreshIndicator(
+        color: MenuUiColors.crimson,
+        onRefresh: () async {
+          setState(() => _customSwapped.clear());
+          await ref
+              .read(recommendationProvider.notifier)
+              .recommend(_getOccasionKey());
+        },
+        child: CustomScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          slivers: [
+            // 1. Hero Header gradasi crimson mengikuti HomeScreen
+            SliverToBoxAdapter(
+              child: _buildHeroHeader(recState, clothes),
             ),
-          ),
+
+            // 2. Pilih Agenda Hari Ini
+            SliverPadding(
+              padding: const EdgeInsets.fromLTRB(18, 20, 18, 0),
+              sliver: SliverToBoxAdapter(
+                child: _buildAgendaSection(),
+              ),
+            ),
+
+            // 3. Recommendation Main Card & Content
+            SliverPadding(
+              padding: const EdgeInsets.fromLTRB(18, 20, 18, 32),
+              sliver: SliverToBoxAdapter(
+                child: recState.isLoading
+                    ? const Padding(
+                        padding: EdgeInsets.symmetric(vertical: 60),
+                        child: Center(
+                          child: Column(
+                            children: [
+                              CircularProgressIndicator(
+                                valueColor: AlwaysStoppedAnimation<Color>(
+                                  MenuUiColors.crimson,
+                                ),
+                                strokeWidth: 2.5,
+                              ),
+                              SizedBox(height: 14),
+                              Text(
+                                'AI Stylist sedang memilih padu-padan terbaik...',
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  color: MenuUiColors.textSecondary,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      )
+                    : !_hasEnoughClothes(clothes)
+                        ? _buildMissingClothesWidget()
+                        : recState.error != null
+                            ? _buildIncompatibleOccasionWidget(
+                                recState.error!,
+                                _getOccasionKey(),
+                              )
+                            : recState.recommendation != null
+                                ? _buildRecommendationCard(
+                                    rec: recState.recommendation!,
+                                    clothes: clothes,
+                                  )
+                                : _buildEmptyState(),
+              ),
+            ),
+          ],
         ),
       ),
     );
   }
 
-  // ==================== 1. TOP BAR / HEADER ====================
-  Widget _buildHeader() {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.center,
-      children: [
-        // Ikon Sparkle Peach Circle
-        Container(
-          width: 44,
-          height: 44,
-          decoration: BoxDecoration(
-            color: const Color(0xFFFDE8E8),
-            shape: BoxShape.circle,
-            border: Border.all(color: const Color(0xFFFAD1D1)),
-          ),
-          child: const Center(
-            child: Icon(
-              Icons.auto_awesome,
-              color: AppTheme.primaryColor,
-              size: 22,
-            ),
+  // ==================== 1. HERO HEADER ====================
+  Widget _buildHeroHeader(
+    RecommendationState recState,
+    List<ClothModel> clothes,
+  ) {
+    return MenuHeroHeader(
+      leading: Container(
+        width: 46,
+        height: 46,
+        decoration: BoxDecoration(
+          color: Colors.white.withValues(alpha: 0.2),
+          shape: BoxShape.circle,
+          border: Border.all(
+            color: Colors.white.withValues(alpha: 0.45),
+            width: 2,
           ),
         ),
-        const SizedBox(width: 12),
-        // Title & Subtitles
-        const Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'AI Stylist',
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w500,
-                  color: Color(0xFF4A5056),
-                ),
-              ),
-              Text(
-                'Rekomendasi',
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                  color: AppTheme.textPrimary,
-                ),
-              ),
-              Text(
-                'Padu-padan cerdas dari isi lemarimu',
-                style: TextStyle(
-                  fontSize: 12,
-                  color: Color(0xFF757575),
-                ),
-              ),
-            ],
-          ),
-        ),
-        // Weather Badge Pill
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-          decoration: BoxDecoration(
+        child: const Center(
+          child: Icon(
+            Icons.auto_awesome,
             color: Colors.white,
+            size: 22,
+          ),
+        ),
+      ),
+      subtitle: 'AI Stylist',
+      title: 'Rekomendasi',
+      caption: 'Padu-padan cerdas dari isi lemarimu',
+      actions: [
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 7),
+          decoration: BoxDecoration(
+            color: Colors.white.withValues(alpha: 0.18),
             borderRadius: BorderRadius.circular(18),
-            border: Border.all(color: const Color(0xFFEEF0F2)),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.02),
-                blurRadius: 4,
-                offset: const Offset(0, 1),
-              ),
-            ],
+            border: Border.all(color: Colors.white.withValues(alpha: 0.3)),
           ),
           child: const Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(Icons.wb_sunny_outlined,
-                  size: 15, color: Color(0xFF4A5056)),
+              Text('☀️', style: TextStyle(fontSize: 13)),
               SizedBox(width: 5),
               Text(
                 '28°C',
                 style: TextStyle(
                   fontSize: 12.5,
                   fontWeight: FontWeight.bold,
-                  color: AppTheme.textPrimary,
+                  color: Colors.white,
                 ),
               ),
             ],
           ),
         ),
-        const SizedBox(width: 8),
-        // Notification Bell Button
-        Container(
-          width: 40,
-          height: 40,
-          decoration: BoxDecoration(
-            color: Colors.white,
-            shape: BoxShape.circle,
-            border: Border.all(color: const Color(0xFFEEF0F2)),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.02),
-                blurRadius: 4,
-                offset: const Offset(0, 1),
+        HeroGlassIconButton(
+          icon: Icons.notifications_none_rounded,
+          onTap: () {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content:
+                    Text('Rekomendasi disesuaikan dengan cuaca hari ini.'),
+                duration: Duration(seconds: 2),
               ),
-            ],
-          ),
-          child: IconButton(
-            padding: EdgeInsets.zero,
-            icon: const Icon(
-              Icons.notifications_none_rounded,
-              color: Color(0xFF2C3E50),
-              size: 20,
-            ),
-            onPressed: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Rekomendasi disesuaikan dengan cuaca hari ini.'),
-                  duration: Duration(seconds: 2),
-                ),
-              );
-            },
-          ),
+            );
+          },
         ),
+      ],
+      statChips: [
+        HeroStatChip(
+          icon: Icons.event_note_rounded,
+          label: 'Agenda: ${_getOccasionKey()}',
+        ),
+        HeroStatChip(
+          icon: Icons.checkroom_outlined,
+          label: '${clothes.length} Item Lemari',
+        ),
+        if (recState.recommendation != null)
+          HeroStatChip(
+            icon: Icons.verified_outlined,
+            label: '${recState.recommendation!.score.round()}% Cocok',
+          ),
       ],
     );
   }
@@ -377,66 +351,78 @@ class _RecommendationScreenState extends ConsumerState<RecommendationScreen> {
             const Text(
               'Pilih Agenda Hari Ini',
               style: TextStyle(
-                fontSize: 14.5,
+                fontSize: 18,
                 fontWeight: FontWeight.bold,
-                color: AppTheme.textPrimary,
+                color: MenuUiColors.textPrimary,
+                letterSpacing: -0.3,
               ),
             ),
             GestureDetector(
               onTap: _showFilterModal,
-              child: const Row(
-                children: [
-                  Icon(Icons.tune_rounded,
-                      size: 14, color: AppTheme.primaryColor),
-                  SizedBox(width: 4),
-                  Text(
-                    'Filter',
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.bold,
-                      color: AppTheme.primaryColor,
+              child: Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+                decoration: BoxDecoration(
+                  color: MenuUiColors.crimson.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: const Row(
+                  children: [
+                    Icon(Icons.tune_rounded,
+                        size: 14, color: MenuUiColors.crimson),
+                    SizedBox(width: 4),
+                    Text(
+                      'Filter',
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        color: MenuUiColors.crimson,
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
           ],
         ),
-        const SizedBox(height: 10),
+        const SizedBox(height: 12),
         SizedBox(
-          height: 38,
+          height: 44,
           child: ListView.separated(
             scrollDirection: Axis.horizontal,
             itemCount: _agendaList.length,
-            separatorBuilder: (_, __) => const SizedBox(width: 8),
+            separatorBuilder: (_, __) => const SizedBox(width: 10),
             itemBuilder: (context, index) {
               final agenda = _agendaList[index];
               final label = agenda['label'] as String;
+              final gradColors = agenda['gradient'] as List<Color>;
               final isSelected = _selectedAgenda == label ||
                   _selectedAgenda == agenda['occasion'];
 
               return GestureDetector(
                 onTap: () => _onAgendaSelected(label),
                 child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 200),
+                  duration: const Duration(milliseconds: 220),
                   padding:
-                      const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+                      const EdgeInsets.symmetric(horizontal: 15, vertical: 9),
                   decoration: BoxDecoration(
-                    color: isSelected
-                        ? const Color(0xFF1E2022)
-                        : Colors.white,
-                    borderRadius: BorderRadius.circular(20),
+                    gradient: isSelected
+                        ? LinearGradient(colors: gradColors)
+                        : null,
+                    color: isSelected ? null : MenuUiColors.cardBg,
+                    borderRadius: BorderRadius.circular(22),
                     border: Border.all(
                       color: isSelected
-                          ? const Color(0xFF1E2022)
-                          : const Color(0xFFE5E7EB),
+                          ? Colors.transparent
+                          : MenuUiColors.divider,
+                      width: 1.2,
                     ),
                     boxShadow: isSelected
                         ? [
                             BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.12),
-                              blurRadius: 6,
-                              offset: const Offset(0, 2),
+                              color: gradColors.first.withValues(alpha: 0.32),
+                              blurRadius: 10,
+                              offset: const Offset(0, 4),
                             ),
                           ]
                         : null,
@@ -444,23 +430,19 @@ class _RecommendationScreenState extends ConsumerState<RecommendationScreen> {
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(
-                        agenda['icon'] as IconData,
-                        size: 15,
-                        color: isSelected
-                            ? Colors.white
-                            : const Color(0xFF5A626A),
+                      Text(
+                        agenda['emoji'] as String,
+                        style: const TextStyle(fontSize: 15),
                       ),
-                      const SizedBox(width: 6),
+                      const SizedBox(width: 7),
                       Text(
                         label,
                         style: TextStyle(
-                          fontSize: 12.5,
-                          fontWeight:
-                              isSelected ? FontWeight.bold : FontWeight.w500,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
                           color: isSelected
                               ? Colors.white
-                              : const Color(0xFF2C3E50),
+                              : MenuUiColors.textPrimary,
                         ),
                       ),
                     ],
@@ -530,125 +512,158 @@ class _RecommendationScreenState extends ConsumerState<RecommendationScreen> {
       orElse: () => _agendaList.first,
     );
     final sublabel = currentAgenda['sublabel'] as String;
+    final emoji = (currentAgenda['emoji'] as String?) ?? '👗';
+    final gradColors = (currentAgenda['gradient'] as List<Color>?) ??
+        [MenuUiColors.crimson, MenuUiColors.crimsonLight];
 
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: const Color(0xFFEEF0F2)),
+        color: MenuUiColors.cardBg,
+        borderRadius: BorderRadius.circular(22),
         boxShadow: [
           BoxShadow(
+            color: gradColors.first.withValues(alpha: 0.09),
+            blurRadius: 20,
+            offset: const Offset(0, 6),
+          ),
+          BoxShadow(
             color: Colors.black.withValues(alpha: 0.03),
-            blurRadius: 10,
-            offset: const Offset(0, 3),
+            blurRadius: 6,
+            offset: const Offset(0, 2),
           ),
         ],
       ),
-      padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Header Kartu: 98% Sangat Serasi, Sublabel, Palette Dots
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              // Badge Cocok Hijau
-              Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFD9F3E4),
-                  borderRadius: BorderRadius.circular(16),
+          // Gradient header strip mengikuti kartu Rekomendasi di HomeScreen
+          Container(
+            padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [
+                  gradColors.first.withValues(alpha: 0.12),
+                  gradColors.last.withValues(alpha: 0.05),
+                ],
+              ),
+              borderRadius:
+                  const BorderRadius.vertical(top: Radius.circular(22)),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFE2F7EB),
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(
+                        Icons.check_circle_rounded,
+                        size: 13,
+                        color: Color(0xFF1E8E3E),
+                      ),
+                      const SizedBox(width: 5),
+                      Text(
+                        '${rec.score.round()}% Sangat Serasi',
+                        style: const TextStyle(
+                          fontSize: 11.5,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF167C37),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(
-                      Icons.check_circle_rounded,
-                      size: 13,
-                      color: Color(0xFF1E8E3E),
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: gradColors.first.withValues(alpha: 0.25),
                     ),
-                    const SizedBox(width: 5),
-                    Text(
-                      '${rec.score.round()}% Sangat Serasi',
-                      style: const TextStyle(
-                        fontSize: 11.5,
-                        fontWeight: FontWeight.bold,
-                        color: Color(0xFF167C37),
+                  ),
+                  child: Text(
+                    '$emoji $sublabel',
+                    style: TextStyle(
+                      fontSize: 11.5,
+                      fontWeight: FontWeight.w600,
+                      color: gradColors.first,
+                    ),
+                  ),
+                ),
+                _buildColorPaletteDots(activeItems),
+              ],
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Grid 2x2 Pakaian: Atasan, Bawahan, Sepatu, Layering
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: _buildItemCard(
+                        item: top,
+                        slotLabel: 'Atasan',
+                        category: ClothCategory.top,
+                        clothes: clothes,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: _buildItemCard(
+                        item: bottom,
+                        slotLabel: 'Bawahan',
+                        category: ClothCategory.bottom,
+                        clothes: clothes,
                       ),
                     ),
                   ],
                 ),
-              ),
-              // Sublabel acara
-              Text(
-                sublabel,
-                style: const TextStyle(
-                  fontSize: 12.5,
-                  fontWeight: FontWeight.w500,
-                  color: Color(0xFF5A626A),
+                const SizedBox(height: 12),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: _buildItemCard(
+                        item: shoes,
+                        slotLabel: 'Sepatu',
+                        category: ClothCategory.shoes,
+                        clothes: clothes,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: _buildItemCard(
+                        item: layering,
+                        slotLabel: 'Layering (Opsi)',
+                        category: ClothCategory.outer,
+                        clothes: clothes,
+                      ),
+                    ),
+                  ],
                 ),
-              ),
-              // Dots Palet Warna
-              _buildColorPaletteDots(activeItems),
-            ],
-          ),
-          const SizedBox(height: 16),
+                const SizedBox(height: 16),
 
-          // Grid 2x2 Pakaian: Atasan, Bawahan, Sepatu, Layering
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: _buildItemCard(
-                  item: top,
-                  slotLabel: 'Atasan',
-                  category: ClothCategory.top,
-                  clothes: clothes,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: _buildItemCard(
-                  item: bottom,
-                  slotLabel: 'Bawahan',
-                  category: ClothCategory.bottom,
-                  clothes: clothes,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: _buildItemCard(
-                  item: shoes,
-                  slotLabel: 'Sepatu',
-                  category: ClothCategory.shoes,
-                  clothes: clothes,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: _buildItemCard(
-                  item: layering,
-                  slotLabel: 'Layering (Opsi)',
-                  category: ClothCategory.outer,
-                  clothes: clothes,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
+                // Catatan Stylist AI
+                _buildStylistNotes(top, bottom, gradColors),
+                const SizedBox(height: 18),
 
-          // Catatan Stylist AI
-          _buildStylistNotes(top, bottom),
-          const SizedBox(height: 18),
-
-          // Tombol Aksi: Pakai Hari Ini & Simpan Favorit & Acak Ulang
-          _buildActionButtons(activeItems, rec.occasion),
+                // Tombol Aksi: Pakai Hari Ini & Simpan Favorit & Acak Ulang
+                _buildActionButtons(activeItems, rec.occasion),
+              ],
+            ),
+          ),
         ],
       ),
     );
@@ -662,13 +677,12 @@ class _RecommendationScreenState extends ConsumerState<RecommendationScreen> {
     required List<ClothModel> clothes,
   }) {
     if (item == null) {
-      // Slot kosong / belum ada
       return Container(
-        height: 200,
+        height: 204,
         decoration: BoxDecoration(
-          color: const Color(0xFFF9FAFB),
+          color: MenuUiColors.surface,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: const Color(0xFFEEF0F2)),
+          border: Border.all(color: MenuUiColors.divider),
         ),
         padding: const EdgeInsets.all(10),
         child: Column(
@@ -679,14 +693,14 @@ class _RecommendationScreenState extends ConsumerState<RecommendationScreen> {
               decoration: BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: const Color(0xFFE5E7EB)),
+                border: Border.all(color: MenuUiColors.divider),
               ),
               child: Text(
                 slotLabel,
                 style: const TextStyle(
                   fontSize: 11,
                   fontWeight: FontWeight.w600,
-                  color: Color(0xFF6B7280),
+                  color: MenuUiColors.textSecondary,
                 ),
               ),
             ),
@@ -700,8 +714,8 @@ class _RecommendationScreenState extends ConsumerState<RecommendationScreen> {
                 'Pilih $slotLabel',
                 style: const TextStyle(
                   fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  color: AppTheme.primaryColor,
+                  fontWeight: FontWeight.w700,
+                  color: MenuUiColors.crimson,
                 ),
               ),
             ),
@@ -712,15 +726,14 @@ class _RecommendationScreenState extends ConsumerState<RecommendationScreen> {
 
     return Container(
       decoration: BoxDecoration(
-        color: const Color(0xFFF9FAFB),
+        color: MenuUiColors.surface,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFEEF0F2)),
+        border: Border.all(color: MenuUiColors.divider),
       ),
       padding: const EdgeInsets.all(10),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Header slot: Label slot & Tombol Swap
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -729,33 +742,31 @@ class _RecommendationScreenState extends ConsumerState<RecommendationScreen> {
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: const Color(0xFFEEF0F2)),
+                  border: Border.all(color: MenuUiColors.divider),
                 ),
                 child: Text(
                   slotLabel,
                   style: const TextStyle(
                     fontSize: 11,
                     fontWeight: FontWeight.w600,
-                    color: Color(0xFF4A5056),
+                    color: MenuUiColors.textPrimary,
                   ),
                 ),
               ),
-              // Tombol Swap Ganti Item
               GestureDetector(
                 onTap: () => _openSwapModal(category, clothes),
                 child: Container(
-                  width: 26,
-                  height: 26,
+                  width: 28,
+                  height: 28,
                   decoration: BoxDecoration(
-                    color: Colors.white,
+                    color: MenuUiColors.crimson.withValues(alpha: 0.08),
                     shape: BoxShape.circle,
-                    border: Border.all(color: const Color(0xFFE5E7EB)),
                   ),
                   child: const Center(
                     child: Icon(
                       Icons.swap_horiz_rounded,
-                      size: 15,
-                      color: Color(0xFF5A626A),
+                      size: 16,
+                      color: MenuUiColors.crimson,
                     ),
                   ),
                 ),
@@ -763,10 +774,8 @@ class _RecommendationScreenState extends ConsumerState<RecommendationScreen> {
             ],
           ),
           const SizedBox(height: 8),
-
-          // Area Gambar Pakaian
           ClipRRect(
-            borderRadius: BorderRadius.circular(10),
+            borderRadius: BorderRadius.circular(12),
             child: Container(
               height: 118,
               width: double.infinity,
@@ -779,8 +788,6 @@ class _RecommendationScreenState extends ConsumerState<RecommendationScreen> {
             ),
           ),
           const SizedBox(height: 8),
-
-          // Nama Pakaian
           Text(
             item.name,
             maxLines: 1,
@@ -788,19 +795,17 @@ class _RecommendationScreenState extends ConsumerState<RecommendationScreen> {
             style: const TextStyle(
               fontSize: 13,
               fontWeight: FontWeight.bold,
-              color: AppTheme.textPrimary,
+              color: MenuUiColors.textPrimary,
             ),
           ),
           const SizedBox(height: 2),
-
-          // Subtitle Gaya & Warna
           Text(
             '${item.styles.isNotEmpty ? item.styles.map((s) => s.label).join(', ') : 'Casual'} • ${item.colorLabel}',
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: const TextStyle(
               fontSize: 11,
-              color: Color(0xFF757575),
+              color: MenuUiColors.textSecondary,
             ),
           ),
         ],
@@ -809,28 +814,39 @@ class _RecommendationScreenState extends ConsumerState<RecommendationScreen> {
   }
 
   // ==================== CATATAN STYLIST AI ====================
-  Widget _buildStylistNotes(ClothModel? top, ClothModel? bottom) {
+  Widget _buildStylistNotes(
+    ClothModel? top,
+    ClothModel? bottom,
+    List<Color> gradColors,
+  ) {
     final topName = top != null ? top.name : 'atasan favorit';
     final bottomName = bottom != null ? bottom.name : 'celana bahan';
-
     final text = _getPersonalizedStylistNote(topName, bottomName);
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
-        color: const Color(0xFFF7F7F9),
+        color: MenuUiColors.surface,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFFEEF0F2)),
+        border: Border.all(color: MenuUiColors.divider),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Icon(
-            Icons.smart_toy_outlined,
-            size: 18,
-            color: AppTheme.primaryColor,
+          Container(
+            width: 30,
+            height: 30,
+            decoration: BoxDecoration(
+              gradient: LinearGradient(colors: gradColors),
+              borderRadius: BorderRadius.circular(9),
+            ),
+            child: const Icon(
+              Icons.smart_toy_outlined,
+              size: 16,
+              color: Colors.white,
+            ),
           ),
-          const SizedBox(width: 8),
+          const SizedBox(width: 10),
           Expanded(
             child: RichText(
               text: TextSpan(
@@ -844,7 +860,7 @@ class _RecommendationScreenState extends ConsumerState<RecommendationScreen> {
                     text: 'Catatan Stylist: ',
                     style: TextStyle(
                       fontWeight: FontWeight.bold,
-                      color: AppTheme.primaryColor,
+                      color: MenuUiColors.crimson,
                     ),
                   ),
                   TextSpan(text: text),
@@ -932,46 +948,29 @@ class _RecommendationScreenState extends ConsumerState<RecommendationScreen> {
         Row(
           children: [
             Expanded(
-              child: SizedBox(
-                height: 44,
-                child: ElevatedButton.icon(
-                  onPressed: () => _wearOutfit(itemIds, occasion),
-                  icon: const Icon(Icons.check_circle_outline,
-                      size: 18, color: Colors.white),
-                  label: const Text(
-                    'Pakai Hari Ini',
-                    style: TextStyle(
-                      fontSize: 13.5,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                    ),
-                  ),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppTheme.primaryColor,
-                    elevation: 0,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                ),
+              child: PakeAjaGradientButton(
+                onPressed: () => _wearOutfit(itemIds, occasion),
+                icon: Icons.check_circle_outline,
+                label: 'Pakai Hari Ini',
               ),
             ),
-            const SizedBox(width: 8),
+            const SizedBox(width: 10),
             SizedBox(
               height: 44,
+              width: 48,
               child: OutlinedButton(
                 onPressed: () => _saveFavorite(itemIds, occasion),
                 style: OutlinedButton.styleFrom(
-                  side: const BorderSide(color: Color(0xFFE2E4E8), width: 1.2),
+                  side: const BorderSide(color: MenuUiColors.divider, width: 1.5),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  padding: const EdgeInsets.symmetric(horizontal: 14),
+                  padding: EdgeInsets.zero,
                 ),
                 child: const Icon(
                   Icons.favorite_border_rounded,
                   size: 20,
-                  color: AppTheme.primaryColor,
+                  color: MenuUiColors.crimson,
                 ),
               ),
             ),
@@ -989,13 +988,13 @@ class _RecommendationScreenState extends ConsumerState<RecommendationScreen> {
                   .reshuffle(_getOccasionKey());
             },
             icon: const Icon(Icons.sync_rounded,
-                size: 18, color: Color(0xFF5A626A)),
+                size: 18, color: MenuUiColors.crimson),
             label: const Text(
               'Acak Ulang Kombinasi',
               style: TextStyle(
                 fontSize: 12.5,
-                fontWeight: FontWeight.w600,
-                color: Color(0xFF5A626A),
+                fontWeight: FontWeight.w700,
+                color: MenuUiColors.crimson,
               ),
             ),
           ),

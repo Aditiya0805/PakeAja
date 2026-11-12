@@ -7,6 +7,7 @@ import 'package:pakeaja/core/constants/app_constants.dart';
 import 'package:pakeaja/core/theme/app_theme.dart';
 import 'package:pakeaja/core/utils/error_handler.dart';
 import 'package:pakeaja/core/widgets/clothing_card.dart';
+import 'package:pakeaja/core/widgets/menu_hero_header.dart';
 import 'package:pakeaja/core/widgets/state_widgets.dart';
 import 'package:pakeaja/data/models/cloth_model.dart';
 import 'package:pakeaja/features/auth/providers/auth_provider.dart'
@@ -87,249 +88,234 @@ class _WardrobeScreenState extends ConsumerState<WardrobeScreen> {
     final readyCount = allClothes.length - washingCount;
 
     return Scaffold(
-      backgroundColor: AppTheme.backgroundColor,
-      body: SafeArea(
-        child: RefreshIndicator(
-          color: AppTheme.primaryColor,
-          onRefresh: () async {
-            ref.invalidate(clothesListProvider);
-          },
-          child: CustomScrollView(
-            slivers: [
-              // 1. Header (Avatar, Title, Notification & Filter Icons)
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding:
-                      const EdgeInsets.only(left: 20, right: 20, top: 16, bottom: 12),
-                  child: _buildHeader(user),
-                ),
+      backgroundColor: MenuUiColors.surface,
+      body: RefreshIndicator(
+        color: MenuUiColors.crimson,
+        onRefresh: () async {
+          ref.invalidate(clothesListProvider);
+        },
+        child: CustomScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          slivers: [
+            // 1. Hero Header gradasi crimson mengikuti HomeScreen
+            SliverToBoxAdapter(
+              child: _buildHeroHeader(
+                user: user,
+                totalCount: allClothes.length,
+                readyCount: readyCount,
+                washingCount: washingCount,
               ),
+            ),
 
-              // 2. Search Bar & Count Pill
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 20, vertical: 6),
-                  child: _buildSearchAndCountRow(allClothes.length),
-                ),
+            // 2. Search Bar & Filter Indicator
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(18, 18, 18, 0),
+                child: _buildSearchAndCountRow(allClothes.length, filter),
               ),
+            ),
 
-              // 3. AI Auto-Detect Banner
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-                  child: _buildAiAutoDetectBanner(),
-                ),
+            // 3. AI Auto-Detect Banner (gradasi crimson-coral seperti HomeScreen)
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(18, 14, 18, 0),
+                child: _buildAiAutoDetectBanner(),
               ),
+            ),
 
-              // 4. Kategori Koleksi Header & Horizontal Chips
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.only(top: 10, bottom: 4),
-                  child: _buildCategoriesSection(
-                    filter: filter,
-                    allCount: allClothes.length,
-                    outerCount: outerCount,
-                    shoesCount: shoesCount,
-                    accessoryCount: accessoryCount,
-                    topCount: topCount,
-                    bottomCount: bottomCount,
-                    onepieceCount: onepieceCount,
-                  ),
-                ),
-              ),
-
-              // 5. Sub-filter Row (Siap Pakai, Sedang Dicuci, Gaya)
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.only(top: 4, bottom: 14),
-                  child: _buildSubFiltersRow(
-                    filter: filter,
-                    readyCount: readyCount,
-                    washingCount: washingCount,
-                  ),
-                ),
-              ),
-
-              // 6. Grid Koleksi Pakaian
-              SliverPadding(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                sliver: _buildClothesContent(
-                  clothesState: clothesState,
-                  filtered: filtered,
+            // 4. Kategori Koleksi Header & Horizontal Chips
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.only(top: 20, bottom: 6),
+                child: _buildCategoriesSection(
                   filter: filter,
-                  favoriteIds: favoriteIds,
-                  washingIds: washingIds,
+                  allCount: allClothes.length,
+                  outerCount: outerCount,
+                  shoesCount: shoesCount,
+                  accessoryCount: accessoryCount,
+                  topCount: topCount,
+                  bottomCount: bottomCount,
+                  onepieceCount: onepieceCount,
                 ),
               ),
+            ),
 
-              // Bottom Padding untuk FAB
-              const SliverToBoxAdapter(
-                child: SizedBox(height: 80),
+            // 5. Sub-filter Row (Siap Pakai, Sedang Dicuci, Gaya)
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.only(top: 6, bottom: 16),
+                child: _buildSubFiltersRow(
+                  filter: filter,
+                  readyCount: readyCount,
+                  washingCount: washingCount,
+                ),
               ),
-            ],
-          ),
+            ),
+
+            // 6. Grid Koleksi Pakaian
+            SliverPadding(
+              padding: const EdgeInsets.symmetric(horizontal: 18),
+              sliver: _buildClothesContent(
+                clothesState: clothesState,
+                filtered: filtered,
+                filter: filter,
+                favoriteIds: favoriteIds,
+                washingIds: washingIds,
+              ),
+            ),
+
+            // Bottom Padding untuk FAB
+            const SliverToBoxAdapter(
+              child: SizedBox(height: 92),
+            ),
+          ],
         ),
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: _showAddClothModal,
-        backgroundColor: AppTheme.primaryColor,
-        elevation: 4,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(24),
+      floatingActionButton: Container(
+        decoration: BoxDecoration(
+          gradient: MenuUiColors.ctaGradient,
+          borderRadius: BorderRadius.circular(26),
+          boxShadow: [
+            BoxShadow(
+              color: MenuUiColors.crimson.withValues(alpha: 0.35),
+              blurRadius: 14,
+              offset: const Offset(0, 5),
+            ),
+          ],
         ),
-        icon: const Icon(
-          Icons.add_a_photo_outlined,
-          color: Colors.white,
-          size: 20,
-        ),
-        label: const Text(
-          'Tambah Pakaian',
-          style: TextStyle(
+        child: FloatingActionButton.extended(
+          onPressed: _showAddClothModal,
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          highlightElevation: 0,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(26),
+          ),
+          icon: const Icon(
+            Icons.add_a_photo_outlined,
             color: Colors.white,
-            fontWeight: FontWeight.bold,
-            fontSize: 14,
+            size: 20,
+          ),
+          label: const Text(
+            'Tambah Pakaian',
+            style: TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.bold,
+              fontSize: 14,
+            ),
           ),
         ),
       ),
     );
   }
 
-  // ==================== 1. HEADER ====================
-  Widget _buildHeader(dynamic user) {
-    return Row(
-      children: [
-        // Avatar
-        CircleAvatar(
+  // ==================== 1. HERO HEADER ====================
+  Widget _buildHeroHeader({
+    required dynamic user,
+    required int totalCount,
+    required int readyCount,
+    required int washingCount,
+  }) {
+    return MenuHeroHeader(
+      leading: Container(
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          border: Border.all(
+            color: Colors.white.withValues(alpha: 0.6),
+            width: 2.5,
+          ),
+        ),
+        child: CircleAvatar(
           radius: 22,
-          backgroundColor: AppTheme.primaryColor.withValues(alpha: 0.08),
+          backgroundColor: Colors.white.withValues(alpha: 0.2),
           backgroundImage: user?.photoUrl != null
               ? CachedNetworkImageProvider(user!.photoUrl!)
               : null,
           child: user?.photoUrl == null
-              ? const Icon(Icons.person, color: AppTheme.primaryColor, size: 24)
+              ? const Icon(Icons.person, color: Colors.white, size: 24)
               : null,
         ),
-        const SizedBox(width: 12),
-        // Judul Lemari
-        const Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'PakeAja Wardrobe',
-                style: TextStyle(
-                  fontSize: 12.5,
-                  color: Color(0xFF757575),
-                  fontWeight: FontWeight.w400,
-                ),
+      ),
+      subtitle: 'PakeAja Wardrobe',
+      title: 'Lemari Digital',
+      actions: [
+        HeroGlassIconButton(
+          icon: Icons.notifications_none_rounded,
+          onTap: () {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Lemari pakaian Anda sudah tersinkronisasi.'),
+                duration: Duration(seconds: 2),
               ),
-              SizedBox(height: 2),
-              Text(
-                'Lemari Digital',
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                  color: AppTheme.textPrimary,
-                ),
-              ),
-            ],
-          ),
+            );
+          },
         ),
-        // Tombol Lonceng Notifikasi
-        Container(
-          width: 42,
-          height: 42,
-          decoration: BoxDecoration(
-            color: Colors.white,
-            shape: BoxShape.circle,
-            border: Border.all(color: const Color(0xFFEEF0F2)),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.02),
-                blurRadius: 6,
-                offset: const Offset(0, 1),
-              ),
-            ],
-          ),
-          child: IconButton(
-            padding: EdgeInsets.zero,
-            icon: const Icon(
-              Icons.notifications_none_rounded,
-              color: Color(0xFF2C3E50),
-              size: 21,
-            ),
-            onPressed: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Lemari pakaian Anda sudah tersinkronisasi.'),
-                  duration: Duration(seconds: 2),
-                ),
-              );
-            },
-          ),
+        HeroGlassIconButton(
+          icon: Icons.tune_rounded,
+          onTap: _showFilterAndSortModal,
         ),
-        const SizedBox(width: 8),
-        // Tombol Filter & Sort (Tune)
-        Container(
-          width: 42,
-          height: 42,
-          decoration: BoxDecoration(
-            color: Colors.white,
-            shape: BoxShape.circle,
-            border: Border.all(color: const Color(0xFFEEF0F2)),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.02),
-                blurRadius: 6,
-                offset: const Offset(0, 1),
-              ),
-            ],
-          ),
-          child: IconButton(
-            padding: EdgeInsets.zero,
-            icon: const Icon(
-              Icons.tune_rounded,
-              color: Color(0xFF2C3E50),
-              size: 21,
-            ),
-            onPressed: _showFilterAndSortModal,
-          ),
+      ],
+      statChips: [
+        HeroStatChip(
+          icon: Icons.checkroom_outlined,
+          label: '$totalCount Pakaian',
+        ),
+        HeroStatChip(
+          icon: Icons.check_circle_outline_rounded,
+          label: '$readyCount Siap Pakai',
+        ),
+        HeroStatChip(
+          icon: Icons.local_laundry_service_outlined,
+          label: '$washingCount Dicuci',
         ),
       ],
     );
   }
 
   // ==================== 2. SEARCH & COUNT ROW ====================
-  Widget _buildSearchAndCountRow(int totalCount) {
+  Widget _buildSearchAndCountRow(int totalCount, ClothFilter filter) {
     return Row(
       children: [
-        // Input Pencarian
         Expanded(
           child: Container(
-            height: 44,
+            height: 46,
             decoration: BoxDecoration(
-              color: const Color(0xFFF4F5F7),
-              borderRadius: BorderRadius.circular(24),
+              color: MenuUiColors.cardBg,
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(color: MenuUiColors.divider),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.03),
+                  blurRadius: 10,
+                  offset: const Offset(0, 3),
+                ),
+              ],
             ),
             child: TextField(
               controller: _searchController,
               onChanged: _onSearchChanged,
-              style: const TextStyle(fontSize: 13.5, color: AppTheme.textPrimary),
+              style: const TextStyle(
+                fontSize: 13.5,
+                color: MenuUiColors.textPrimary,
+              ),
               decoration: InputDecoration(
                 hintText: 'Cari pakaian, bahan, warna...',
-                hintStyle:
-                    const TextStyle(color: Color(0xFF8E959E), fontSize: 13),
+                hintStyle: const TextStyle(
+                  color: MenuUiColors.textSecondary,
+                  fontSize: 13,
+                ),
                 prefixIcon: const Icon(
                   Icons.search_rounded,
-                  color: Color(0xFF8E959E),
+                  color: MenuUiColors.crimson,
                   size: 20,
                 ),
                 suffixIcon: _searchController.text.isNotEmpty
                     ? IconButton(
-                        icon: const Icon(Icons.close_rounded,
-                            size: 18, color: Color(0xFF8E959E)),
+                        icon: const Icon(
+                          Icons.close_rounded,
+                          size: 18,
+                          color: MenuUiColors.textSecondary,
+                        ),
                         onPressed: () {
                           _searchController.clear();
                           _onSearchChanged('');
@@ -345,40 +331,56 @@ class _WardrobeScreenState extends ConsumerState<WardrobeScreen> {
           ),
         ),
         const SizedBox(width: 10),
-        // Badge Total Pakaian
-        Container(
-          height: 44,
-          padding: const EdgeInsets.symmetric(horizontal: 14),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(22),
-            border: Border.all(color: const Color(0xFFEEF0F2)),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.02),
-                blurRadius: 6,
-                offset: const Offset(0, 1),
+        GestureDetector(
+          onTap: filter.isActive
+              ? () {
+                  _searchController.clear();
+                  ref.read(clothFilterProvider.notifier).state =
+                      const ClothFilter();
+                }
+              : _showFilterAndSortModal,
+          child: Container(
+            height: 46,
+            padding: const EdgeInsets.symmetric(horizontal: 14),
+            decoration: BoxDecoration(
+              color: filter.isActive
+                  ? MenuUiColors.crimson.withValues(alpha: 0.1)
+                  : MenuUiColors.cardBg,
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(
+                color: filter.isActive
+                    ? MenuUiColors.crimson.withValues(alpha: 0.3)
+                    : MenuUiColors.divider,
               ),
-            ],
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(
-                Icons.checkroom_outlined,
-                color: AppTheme.primaryColor,
-                size: 18,
-              ),
-              const SizedBox(width: 6),
-              Text(
-                '$totalCount Pakaian',
-                style: const TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.bold,
-                  color: AppTheme.textPrimary,
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.03),
+                  blurRadius: 10,
+                  offset: const Offset(0, 3),
                 ),
-              ),
-            ],
+              ],
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  filter.isActive
+                      ? Icons.filter_alt_off_outlined
+                      : Icons.checkroom_outlined,
+                  color: MenuUiColors.crimson,
+                  size: 18,
+                ),
+                const SizedBox(width: 6),
+                Text(
+                  filter.isActive ? 'Reset' : '$totalCount Item',
+                  style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.bold,
+                    color: MenuUiColors.textPrimary,
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ],
@@ -390,95 +392,115 @@ class _WardrobeScreenState extends ConsumerState<WardrobeScreen> {
     return GestureDetector(
       onTap: () => context.push('/cloth/add?source=camera'),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
         decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: const Color(0xFFEEF0F2)),
+          gradient: MenuUiColors.ctaGradient,
+          borderRadius: BorderRadius.circular(20),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.02),
-              blurRadius: 8,
-              offset: const Offset(0, 2),
+              color: MenuUiColors.crimson.withValues(alpha: 0.28),
+              blurRadius: 16,
+              offset: const Offset(0, 6),
             ),
           ],
         ),
-        child: Row(
+        child: Stack(
+          clipBehavior: Clip.hardEdge,
           children: [
-            // Ikon Kotak Merah Muda
-            Container(
-              width: 44,
-              height: 44,
-              decoration: BoxDecoration(
-                color: const Color(0xFFFDE8E8),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: const Icon(
-                Icons.auto_awesome,
-                color: AppTheme.primaryColor,
-                size: 22,
+            Positioned(
+              right: -18,
+              top: -18,
+              child: Container(
+                width: 84,
+                height: 84,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Colors.white.withValues(alpha: 0.08),
+                ),
               ),
             ),
-            const SizedBox(width: 12),
-            // Teks Banner
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 15),
+              child: Row(
                 children: [
-                  Row(
-                    children: [
-                      const Text(
-                        'AI Auto-Detect Siap',
-                        style: TextStyle(
-                          fontSize: 14.5,
-                          fontWeight: FontWeight.bold,
-                          color: AppTheme.textPrimary,
-                        ),
+                  Container(
+                    width: 44,
+                    height: 44,
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.2),
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(
+                        color: Colors.white.withValues(alpha: 0.28),
                       ),
-                      const SizedBox(width: 8),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 6, vertical: 2),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFE2F7EB),
-                          borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: const Icon(
+                      Icons.auto_awesome,
+                      color: Colors.white,
+                      size: 22,
+                    ),
+                  ),
+                  const SizedBox(width: 13),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            const Text(
+                              'AI Auto-Detect Siap',
+                              style: TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 7,
+                                vertical: 2,
+                              ),
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: const Text(
+                                'CEPAT',
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.bold,
+                                  color: MenuUiColors.crimson,
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
-                        child: const Text(
-                          'CEPAT',
+                        const SizedBox(height: 3),
+                        Text(
+                          'Pindai pakaian baru lewat kamera untuk potong latar otomatis.',
                           style: TextStyle(
-                            fontSize: 10,
-                            fontWeight: FontWeight.bold,
-                            color: Color(0xFF1E8E3E),
+                            fontSize: 12,
+                            color: Colors.white.withValues(alpha: 0.88),
+                            height: 1.3,
                           ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
-                  const SizedBox(height: 3),
-                  const Text(
-                    'Pindai pakaian baru lewat kamera untuk potong latar otomatis.',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Color(0xFF757575),
-                      height: 1.3,
+                  const SizedBox(width: 8),
+                  Container(
+                    width: 34,
+                    height: 34,
+                    decoration: const BoxDecoration(
+                      color: Colors.white,
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.chevron_right_rounded,
+                      color: MenuUiColors.crimson,
+                      size: 21,
                     ),
                   ),
                 ],
-              ),
-            ),
-            const SizedBox(width: 8),
-            // Panah Kanan
-            Container(
-              width: 32,
-              height: 32,
-              decoration: const BoxDecoration(
-                color: Color(0xFFF1F3F5),
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(
-                Icons.chevron_right_rounded,
-                color: Color(0xFF5A626A),
-                size: 20,
               ),
             ),
           ],
@@ -512,7 +534,7 @@ class _WardrobeScreenState extends ConsumerState<WardrobeScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20),
+          padding: const EdgeInsets.symmetric(horizontal: 18),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -522,28 +544,36 @@ class _WardrobeScreenState extends ConsumerState<WardrobeScreen> {
                   fontSize: 12,
                   fontWeight: FontWeight.bold,
                   letterSpacing: 0.6,
-                  color: Color(0xFF6B7280),
+                  color: MenuUiColors.textSecondary,
                 ),
               ),
               GestureDetector(
                 onTap: _showManageCategoriesModal,
-                child: const Text(
-                  'Atur Kategori',
-                  style: TextStyle(
-                    fontSize: 12.5,
-                    fontWeight: FontWeight.w600,
-                    color: AppTheme.primaryColor,
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 11, vertical: 5),
+                  decoration: BoxDecoration(
+                    color: MenuUiColors.crimson.withValues(alpha: 0.08),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: const Text(
+                    'Atur Kategori',
+                    style: TextStyle(
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w700,
+                      color: MenuUiColors.crimson,
+                    ),
                   ),
                 ),
               ),
             ],
           ),
         ),
-        const SizedBox(height: 10),
+        const SizedBox(height: 12),
         SizedBox(
-          height: 38,
+          height: 40,
           child: ListView.separated(
-            padding: const EdgeInsets.symmetric(horizontal: 20),
+            padding: const EdgeInsets.symmetric(horizontal: 18),
             scrollDirection: Axis.horizontal,
             itemCount: categories.length,
             separatorBuilder: (_, __) => const SizedBox(width: 8),
@@ -557,23 +587,26 @@ class _WardrobeScreenState extends ConsumerState<WardrobeScreen> {
               return GestureDetector(
                 onTap: () => _selectCategory(key),
                 child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 200),
+                  duration: const Duration(milliseconds: 220),
                   padding:
-                      const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+                      const EdgeInsets.symmetric(horizontal: 15, vertical: 8),
                   decoration: BoxDecoration(
-                    color: isSelected ? AppTheme.primaryColor : Colors.white,
-                    borderRadius: BorderRadius.circular(20),
+                    gradient: isSelected ? MenuUiColors.ctaGradient : null,
+                    color: isSelected ? null : MenuUiColors.cardBg,
+                    borderRadius: BorderRadius.circular(22),
                     border: Border.all(
                       color: isSelected
-                          ? AppTheme.primaryColor
-                          : const Color(0xFFE5E7EB),
+                          ? Colors.transparent
+                          : MenuUiColors.divider,
+                      width: 1.2,
                     ),
                     boxShadow: isSelected
                         ? [
                             BoxShadow(
-                              color: AppTheme.primaryColor.withValues(alpha: 0.18),
-                              blurRadius: 6,
-                              offset: const Offset(0, 2),
+                              color:
+                                  MenuUiColors.crimson.withValues(alpha: 0.3),
+                              blurRadius: 10,
+                              offset: const Offset(0, 4),
                             ),
                           ]
                         : null,
@@ -584,12 +617,12 @@ class _WardrobeScreenState extends ConsumerState<WardrobeScreen> {
                       Text(
                         label,
                         style: TextStyle(
-                          fontSize: 12.5,
+                          fontSize: 13,
                           fontWeight:
-                              isSelected ? FontWeight.bold : FontWeight.w500,
+                              isSelected ? FontWeight.bold : FontWeight.w600,
                           color: isSelected
                               ? Colors.white
-                              : const Color(0xFF1E2022),
+                              : MenuUiColors.textPrimary,
                         ),
                       ),
                       const SizedBox(width: 6),
@@ -599,7 +632,7 @@ class _WardrobeScreenState extends ConsumerState<WardrobeScreen> {
                         decoration: BoxDecoration(
                           color: isSelected
                               ? Colors.white.withValues(alpha: 0.25)
-                              : const Color(0xFFF3F4F6),
+                              : MenuUiColors.surface,
                           borderRadius: BorderRadius.circular(10),
                         ),
                         child: Text(
@@ -609,7 +642,7 @@ class _WardrobeScreenState extends ConsumerState<WardrobeScreen> {
                             fontWeight: FontWeight.bold,
                             color: isSelected
                                 ? Colors.white
-                                : const Color(0xFF6B7280),
+                                : MenuUiColors.textSecondary,
                           ),
                         ),
                       ),
@@ -632,18 +665,19 @@ class _WardrobeScreenState extends ConsumerState<WardrobeScreen> {
   }) {
     final isReadySelected = filter.status == 'ready';
     final isWashingSelected = filter.status == 'washing';
-    final isCasualSelected = filter.style == 'casual';
-    final isFormalSelected = filter.style == 'formal';
-    final isSmartCasualSelected = filter.style == 'semi-formal';
-    final isSportSelected = filter.style == 'sport';
+    final styleChips = [
+      ('casual', 'Casual', Icons.dry_cleaning_outlined),
+      ('formal', 'Formal', null),
+      ('semi-formal', 'Smart Casual', null),
+      ('sport', 'Sport', null),
+    ];
 
     return SizedBox(
       height: 36,
       child: ListView(
-        padding: const EdgeInsets.symmetric(horizontal: 20),
+        padding: const EdgeInsets.symmetric(horizontal: 18),
         scrollDirection: Axis.horizontal,
         children: [
-          // 1. Siap Pakai Filter Chip
           GestureDetector(
             onTap: () => _selectStatus('ready'),
             child: AnimatedContainer(
@@ -653,12 +687,12 @@ class _WardrobeScreenState extends ConsumerState<WardrobeScreen> {
               decoration: BoxDecoration(
                 color: isReadySelected
                     ? const Color(0xFFDCEEE2)
-                    : Colors.white,
+                    : MenuUiColors.cardBg,
                 borderRadius: BorderRadius.circular(18),
                 border: Border.all(
                   color: isReadySelected
                       ? const Color(0xFFB8DEC4)
-                      : const Color(0xFFE5E7EB),
+                      : MenuUiColors.divider,
                 ),
               ),
               child: Row(
@@ -677,9 +711,8 @@ class _WardrobeScreenState extends ConsumerState<WardrobeScreen> {
                     'Siap Pakai ($readyCount)',
                     style: TextStyle(
                       fontSize: 12,
-                      fontWeight: isReadySelected
-                          ? FontWeight.bold
-                          : FontWeight.w500,
+                      fontWeight:
+                          isReadySelected ? FontWeight.bold : FontWeight.w500,
                       color: isReadySelected
                           ? const Color(0xFF1B4328)
                           : const Color(0xFF2E5B3C),
@@ -690,8 +723,6 @@ class _WardrobeScreenState extends ConsumerState<WardrobeScreen> {
             ),
           ),
           const SizedBox(width: 8),
-
-          // 2. Sedang Dicuci Filter Chip
           GestureDetector(
             onTap: () => _selectStatus('washing'),
             child: AnimatedContainer(
@@ -701,12 +732,12 @@ class _WardrobeScreenState extends ConsumerState<WardrobeScreen> {
               decoration: BoxDecoration(
                 color: isWashingSelected
                     ? const Color(0xFFEEF2FA)
-                    : Colors.white,
+                    : MenuUiColors.cardBg,
                 borderRadius: BorderRadius.circular(18),
                 border: Border.all(
                   color: isWashingSelected
                       ? const Color(0xFFD0DCF2)
-                      : const Color(0xFFE5E7EB),
+                      : MenuUiColors.divider,
                 ),
               ),
               child: Row(
@@ -725,9 +756,8 @@ class _WardrobeScreenState extends ConsumerState<WardrobeScreen> {
                     'Sedang Dicuci ($washingCount)',
                     style: TextStyle(
                       fontSize: 12,
-                      fontWeight: isWashingSelected
-                          ? FontWeight.bold
-                          : FontWeight.w500,
+                      fontWeight:
+                          isWashingSelected ? FontWeight.bold : FontWeight.w500,
                       color: const Color(0xFF4A6572),
                     ),
                   ),
@@ -735,148 +765,60 @@ class _WardrobeScreenState extends ConsumerState<WardrobeScreen> {
               ),
             ),
           ),
-          const SizedBox(width: 8),
-
-          // 3. Casual Style Chip
-          GestureDetector(
-            onTap: () => _selectStyle('casual'),
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 200),
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
-              decoration: BoxDecoration(
-                color: isCasualSelected ? AppTheme.primaryColor : Colors.white,
-                borderRadius: BorderRadius.circular(18),
-                border: Border.all(
-                  color: isCasualSelected
-                      ? AppTheme.primaryColor
-                      : const Color(0xFFE5E7EB),
-                ),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    Icons.dry_cleaning_outlined,
-                    size: 15,
-                    color: isCasualSelected
-                        ? Colors.white
-                        : const Color(0xFF4B5563),
-                  ),
-                  const SizedBox(width: 5),
-                  Text(
-                    'Casual',
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: isCasualSelected
-                          ? FontWeight.bold
-                          : FontWeight.w500,
-                      color: isCasualSelected
-                          ? Colors.white
-                          : const Color(0xFF1E2022),
-                    ),
-                  ),
-                ],
-              ),
+          for (final (key, label, icon) in styleChips) ...[
+            const SizedBox(width: 8),
+            _buildStyleFilterChip(
+              label: label,
+              icon: icon,
+              isSelected: filter.style == key,
+              onTap: () => _selectStyle(key),
             ),
-          ),
-          const SizedBox(width: 8),
-
-          // 4. Formal Style Chip
-          GestureDetector(
-            onTap: () => _selectStyle('formal'),
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 200),
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
-              decoration: BoxDecoration(
-                color: isFormalSelected ? AppTheme.primaryColor : Colors.white,
-                borderRadius: BorderRadius.circular(18),
-                border: Border.all(
-                  color: isFormalSelected
-                      ? AppTheme.primaryColor
-                      : const Color(0xFFE5E7EB),
-                ),
-              ),
-              child: Text(
-                'Formal',
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight:
-                      isFormalSelected ? FontWeight.bold : FontWeight.w500,
-                  color: isFormalSelected
-                      ? Colors.white
-                      : const Color(0xFF1E2022),
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(width: 8),
-
-          // 5. Smart Casual
-          GestureDetector(
-            onTap: () => _selectStyle('semi-formal'),
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 200),
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
-              decoration: BoxDecoration(
-                color: isSmartCasualSelected
-                    ? AppTheme.primaryColor
-                    : Colors.white,
-                borderRadius: BorderRadius.circular(18),
-                border: Border.all(
-                  color: isSmartCasualSelected
-                      ? AppTheme.primaryColor
-                      : const Color(0xFFE5E7EB),
-                ),
-              ),
-              child: Text(
-                'Smart Casual',
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: isSmartCasualSelected
-                      ? FontWeight.bold
-                      : FontWeight.w500,
-                  color: isSmartCasualSelected
-                      ? Colors.white
-                      : const Color(0xFF1E2022),
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(width: 8),
-
-          // 6. Sport
-          GestureDetector(
-            onTap: () => _selectStyle('sport'),
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 200),
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
-              decoration: BoxDecoration(
-                color: isSportSelected ? AppTheme.primaryColor : Colors.white,
-                borderRadius: BorderRadius.circular(18),
-                border: Border.all(
-                  color: isSportSelected
-                      ? AppTheme.primaryColor
-                      : const Color(0xFFE5E7EB),
-                ),
-              ),
-              child: Text(
-                'Sport',
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight:
-                      isSportSelected ? FontWeight.bold : FontWeight.w500,
-                  color: isSportSelected
-                      ? Colors.white
-                      : const Color(0xFF1E2022),
-                ),
-              ),
-            ),
-          ),
+          ],
         ],
+      ),
+    );
+  }
+
+  Widget _buildStyleFilterChip({
+    required String label,
+    IconData? icon,
+    required bool isSelected,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+        decoration: BoxDecoration(
+          gradient: isSelected ? MenuUiColors.ctaGradient : null,
+          color: isSelected ? null : MenuUiColors.cardBg,
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(
+            color: isSelected ? Colors.transparent : MenuUiColors.divider,
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (icon != null) ...[
+              Icon(
+                icon,
+                size: 15,
+                color: isSelected ? Colors.white : const Color(0xFF4B5563),
+              ),
+              const SizedBox(width: 5),
+            ],
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                color: isSelected ? Colors.white : MenuUiColors.textPrimary,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
