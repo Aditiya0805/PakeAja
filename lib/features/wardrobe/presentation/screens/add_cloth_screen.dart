@@ -72,7 +72,7 @@ class _AddClothScreenState extends ConsumerState<AddClothScreen> {
   Future<void> _pickImage(bool fromCamera) async {
     final imageService = ref.read(imageServiceProvider);
     final result = fromCamera
-        ? await imageService.pickFromCamera()
+        ? await imageService.pickFromDeviceCamera(context)
         : await imageService.pickFromGallery();
 
     if (!mounted) return;
@@ -98,7 +98,10 @@ class _AddClothScreenState extends ConsumerState<AddClothScreen> {
     }
 
     final user = ref.read(authStateProvider).valueOrNull;
-    if (user == null) return;
+    if (user == null) {
+      setState(() => _error = 'Sesi login tidak ditemukan. Silakan masuk ulang.');
+      return;
+    }
 
     final cloth = ClothModel(
       id: '', // akan digenerate di repository
@@ -383,7 +386,7 @@ class _AddClothScreenState extends ConsumerState<AddClothScreen> {
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      builder: (context) => SafeArea(
+      builder: (sheetContext) => SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(20),
           child: Column(
@@ -410,7 +413,7 @@ class _AddClothScreenState extends ConsumerState<AddClothScreen> {
                 title: const Text('Kamera'),
                 subtitle: const Text('Ambil foto langsung'),
                 onTap: () {
-                  context.pop();
+                  Navigator.of(sheetContext).pop();
                   _pickImage(true);
                 },
               ),
@@ -427,7 +430,7 @@ class _AddClothScreenState extends ConsumerState<AddClothScreen> {
                 title: const Text('Galeri'),
                 subtitle: const Text('Pilih dari galeri'),
                 onTap: () {
-                  context.pop();
+                  Navigator.of(sheetContext).pop();
                   _pickImage(false);
                 },
               ),

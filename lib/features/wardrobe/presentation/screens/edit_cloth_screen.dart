@@ -71,7 +71,7 @@ class _EditClothScreenState extends ConsumerState<EditClothScreen> {
   Future<void> _pickNewImage(bool fromCamera) async {
     final imageService = ref.read(imageServiceProvider);
     final result = fromCamera
-        ? await imageService.pickFromCamera()
+        ? await imageService.pickFromDeviceCamera(context)
         : await imageService.pickFromGallery();
 
     if (result.bytes != null || result.image != null) {
@@ -97,7 +97,7 @@ class _EditClothScreenState extends ConsumerState<EditClothScreen> {
   void _showImagePickerOptions() {
     showModalBottomSheet(
       context: context,
-      builder: (context) => SafeArea(
+      builder: (sheetContext) => SafeArea(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -105,7 +105,7 @@ class _EditClothScreenState extends ConsumerState<EditClothScreen> {
               leading: const Icon(Icons.camera_alt_outlined),
               title: const Text('Ambil dari Kamera'),
               onTap: () {
-                context.pop();
+                Navigator.of(sheetContext).pop();
                 _pickNewImage(true);
               },
             ),
@@ -113,7 +113,7 @@ class _EditClothScreenState extends ConsumerState<EditClothScreen> {
               leading: const Icon(Icons.photo_library_outlined),
               title: const Text('Pilih dari Galeri'),
               onTap: () {
-                context.pop();
+                Navigator.of(sheetContext).pop();
                 _pickNewImage(false);
               },
             ),

@@ -28,5 +28,7 @@
 	<string>MainMenu</string>
 	<key>NSPrincipalClass</key>
 	<string>NSApplication</string>
+	<key>NSCameraUsageDescription</key>
+	<string>PakeAja membutuhkan akses kamera untuk mengambil foto pakaian kamu.</string>
 </dict>
 </plist>

@@ -16,6 +16,7 @@
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
 	<key>CFBundleName</key>
+	
 	<string>PakeAja</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>

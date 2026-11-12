@@ -8,6 +8,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:permission_handler/permission_handler.dart';
 
 import '../../core/utils/error_handler.dart';
+import '../../core/widgets/device_camera_screen.dart';
 
 class ImagePickerResult {
   final File? image;
@@ -37,6 +38,26 @@ class ImageService {
 
   ImageService({ImagePicker? picker}) : _picker = picker ?? ImagePicker();
 
+  /// Mengambil foto langsung dari kamera device yang sedang digunakan.
+  /// Pada Web (browser), membuka kamera perangkat secara live via WebRTC;
+  /// pada Android/iOS, membuka kamera native perangkat.
+  Future<ImagePickerResult> pickFromDeviceCamera(BuildContext context) async {
+    if (kIsWeb) {
+      final bytes = await captureWithWebDeviceCamera(
+        context,
+        onFileFallback: () async {
+          final res = await pickFromGallery();
+          return res.bytes;
+        },
+      );
+      if (bytes == null || bytes.isEmpty) {
+        return ImagePickerResult.cancelled();
+      }
+      return ImagePickerResult.ok(bytes: bytes);
+    }
+    return pickFromCamera();
+  }
+
   Future<ImagePickerResult> pickFromCamera() async {
     try {
       if (!kIsWeb && !Platform.isMacOS && !Platform.isWindows && !Platform.isLinux) {
@@ -45,6 +66,15 @@ class ImageService {
           return ImagePickerResult.fail(
               'Izin kamera ditolak permanen. Buka pengaturan untuk mengaktifkan.');
         }
+        if (!status.isGranted && !status.isLimited) {
+          return ImagePickerResult.fail(
+              'Izin kamera diperlukan untuk mengambil foto pakaian.');
+        }
+      }
+
+      if (!kIsWeb && !_picker.supportsImageSource(ImageSource.camera)) {
+        return ImagePickerResult.fail(
+            'Kamera langsung belum didukung pada perangkat desktop ini. Gunakan browser Chrome/Web atau pilih dari galeri.');
       }
 
       final xFile = await _picker.pickImage(
@@ -67,7 +97,7 @@ class ImageService {
       final bytes = await finalFile.readAsBytes();
 
       return ImagePickerResult.ok(image: finalFile, bytes: bytes);
-    } on Exception catch (e) {
+    } catch (e) {
       return ImagePickerResult.fail(ErrorHandler.handle(e));
     }
   }
@@ -169,14 +199,24 @@ class ImageService {
 
       // Jika mobile dan FlutterImageCompress tersedia, kompres ukuran byte
       if (!kIsWeb) {
+        const maxBinaryBytes = 550 * 1024;
         try {
-          final compressedBytes = await FlutterImageCompress.compressWithList(
+          var compressedBytes = await FlutterImageCompress.compressWithList(
             targetBytes,
             minWidth: 480,
             minHeight: 480,
             quality: 70,
             format: CompressFormat.jpeg,
           );
+          if (compressedBytes.length > maxBinaryBytes) {
+            compressedBytes = await FlutterImageCompress.compressWithList(
+              compressedBytes,
+              minWidth: 380,
+              minHeight: 380,
+              quality: 50,
+              format: CompressFormat.jpeg,
+            );
+          }
           if (compressedBytes.isNotEmpty) {
             targetBytes = compressedBytes;
           }
