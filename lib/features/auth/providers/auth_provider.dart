@@ -19,6 +19,33 @@ final userDataProvider = StreamProvider.autoDispose<UserModel?>((ref) {
   return ref.watch(userRepositoryProvider).watchUser(user.uid);
 });
 
+/// Nama sementara di sesi aktif (diupdate langsung saat user input nama saat login/register/edit)
+/// sehingga UI langsung mencerminkan nama yang diinputkan user sebelum maupun sesudah stream Firestore sinkron.
+final sessionUserNameProvider = StateProvider<String?>((ref) => null);
+
+/// Nama tampilan efektif user di seluruh aplikasi (Beranda, Profil, dll).
+final effectiveUserNameProvider = Provider.autoDispose<String>((ref) {
+  final sessionName = ref.watch(sessionUserNameProvider)?.trim();
+  if (sessionName != null && sessionName.isNotEmpty) {
+    return sessionName;
+  }
+
+  final userData = ref.watch(userDataProvider).valueOrNull;
+  final docName = userData?.name.trim() ?? '';
+  if (docName.isNotEmpty) return docName;
+
+  final authUser = ref.watch(authStateProvider).valueOrNull;
+  final authName = authUser?.displayName?.trim() ?? '';
+  if (authName.isNotEmpty) return authName;
+
+  final email = authUser?.email ?? userData?.email ?? '';
+  if (email.contains('@')) {
+    return email.split('@').first;
+  }
+
+  return 'Pengguna PakeAja';
+});
+
 // ==================== AUTH CONTROLLER ====================
 class AuthController extends AsyncNotifier<void> {
   late final AuthService _auth;
@@ -34,12 +61,16 @@ class AuthController extends AsyncNotifier<void> {
     required String password,
   }) async {
     state = const AsyncValue.loading();
+    final trimmedName = name.trim();
     final result = await _auth.register(
-      name: name,
+      name: trimmedName,
       email: email,
       password: password,
     );
     if (result.success) {
+      ref.read(sessionUserNameProvider.notifier).state =
+          trimmedName.isNotEmpty ? trimmedName : null;
+      ref.invalidate(userDataProvider);
       state = const AsyncValue.data(null);
       return true;
     }
@@ -47,10 +78,22 @@ class AuthController extends AsyncNotifier<void> {
     return false;
   }
 
-  Future<bool> login({required String email, required String password}) async {
+  Future<bool> login({
+    required String email,
+    required String password,
+    String? name,
+  }) async {
     state = const AsyncValue.loading();
-    final result = await _auth.login(email: email, password: password);
+    final trimmedName = name?.trim() ?? '';
+    final result = await _auth.login(
+      email: email,
+      password: password,
+      name: trimmedName.isNotEmpty ? trimmedName : null,
+    );
     if (result.success) {
+      ref.read(sessionUserNameProvider.notifier).state =
+          trimmedName.isNotEmpty ? trimmedName : null;
+      ref.invalidate(userDataProvider);
       state = const AsyncValue.data(null);
       return true;
     }
@@ -58,10 +101,16 @@ class AuthController extends AsyncNotifier<void> {
     return false;
   }
 
-  Future<bool> signInWithGoogle() async {
+  Future<bool> signInWithGoogle({String? name}) async {
     state = const AsyncValue.loading();
-    final result = await _auth.signInWithGoogle();
+    final trimmedName = name?.trim() ?? '';
+    final result = await _auth.signInWithGoogle(
+      name: trimmedName.isNotEmpty ? trimmedName : null,
+    );
     if (result.success) {
+      ref.read(sessionUserNameProvider.notifier).state =
+          trimmedName.isNotEmpty ? trimmedName : null;
+      ref.invalidate(userDataProvider);
       state = const AsyncValue.data(null);
       return true;
     }
@@ -82,16 +131,27 @@ class AuthController extends AsyncNotifier<void> {
 
   Future<bool> logout() async {
     final result = await _auth.logout();
+    if (result.success) {
+      ref.read(sessionUserNameProvider.notifier).state = null;
+    }
     return result.success;
   }
 
   Future<bool> deleteAccount(String password) async {
     final result = await _auth.deleteAccount(password);
+    if (result.success) {
+      ref.read(sessionUserNameProvider.notifier).state = null;
+    }
     return result.success;
   }
 
   Future<bool> updateProfile({String? name}) async {
-    final result = await _auth.updateProfile(name: name);
+    final trimmedName = name?.trim();
+    final result = await _auth.updateProfile(name: trimmedName);
+    if (result.success && trimmedName != null && trimmedName.isNotEmpty) {
+      ref.read(sessionUserNameProvider.notifier).state = trimmedName;
+      ref.invalidate(userDataProvider);
+    }
     return result.success;
   }
 }

@@ -6,6 +6,16 @@ import 'package:pakeaja/core/utils/error_handler.dart';
 import 'package:pakeaja/data/models/cloth_model.dart';
 import 'package:pakeaja/data/models/outfit_model.dart';
 
+AppException _wrapRepositoryError(Object error) {
+  if (error is AppException) return error;
+  final code = error is FirebaseException ? error.code : null;
+  return AppException(
+    ErrorHandler.handle(error),
+    code: code,
+    originalError: error,
+  );
+}
+
 class ClothRepository {
   final FirebaseFirestore _db;
 
@@ -22,7 +32,7 @@ class ClothRepository {
         .snapshots()
         .map((snapshot) =>
             snapshot.docs.map((doc) => ClothModel.fromFirestore(doc)).toList())
-        .handleError((e) => throw AppException(ErrorHandler.handle(e)));
+        .handleError((e) => throw _wrapRepositoryError(e));
   }
 
   // Pagination
@@ -37,13 +47,13 @@ class ClothRepository {
         .limit(limit)
         .snapshots()
         .map((s) => s.docs.map((d) => ClothModel.fromFirestore(d)).toList())
-        .handleError((e) => throw AppException(ErrorHandler.handle(e)));
+        .handleError((e) => throw _wrapRepositoryError(e));
   }
 
   Stream<ClothModel?> watchCloth(String uid, String clothId) {
     return _clothesRef(uid).doc(clothId).snapshots().map((doc) =>
         doc.exists ? ClothModel.fromFirestore(doc) : null)
-        .handleError((e) => throw AppException(ErrorHandler.handle(e)));
+        .handleError((e) => throw _wrapRepositoryError(e));
   }
 
   // ==================== CRUD ====================
@@ -61,7 +71,7 @@ class ClothRepository {
           );
       return modelWithId;
     } catch (e) {
-      throw AppException(ErrorHandler.handle(e));
+      throw _wrapRepositoryError(e);
     }
   }
 
@@ -77,7 +87,7 @@ class ClothRepository {
                 'Koneksi Firestore timeout saat memperbarui pakaian.'),
           );
     } catch (e) {
-      throw AppException(ErrorHandler.handle(e));
+      throw _wrapRepositoryError(e);
     }
   }
 
@@ -89,7 +99,7 @@ class ClothRepository {
                 'Koneksi Firestore timeout saat menghapus pakaian.'),
           );
     } catch (e) {
-      throw AppException(ErrorHandler.handle(e));
+      throw _wrapRepositoryError(e);
     }
   }
 
@@ -104,7 +114,7 @@ class ClothRepository {
         'wearCount': FieldValue.increment(1),
       });
     } on Exception catch (e) {
-      throw Exception(ErrorHandler.handle(e));
+      throw _wrapRepositoryError(e);
     }
   }
 
@@ -134,7 +144,7 @@ class OutfitRepository {
           list.sort((a, b) => b.createdAt.compareTo(a.createdAt));
           return list;
         })
-        .handleError((e) => throw Exception(ErrorHandler.handle(e)));
+        .handleError((e) => throw _wrapRepositoryError(e));
   }
 
   Stream<List<OutfitModel>> watchHistory(String uid) {
@@ -148,7 +158,7 @@ class OutfitRepository {
           list.sort((a, b) => b.createdAt.compareTo(a.createdAt));
           return list;
         })
-        .handleError((e) => throw Exception(ErrorHandler.handle(e)));
+        .handleError((e) => throw _wrapRepositoryError(e));
   }
 
   Future<OutfitModel> addOutfit({
@@ -159,8 +169,8 @@ class OutfitRepository {
       final docRef = _outfitsRef(uid).doc();
       await docRef.set(outfit.toFirestore());
       return OutfitModel.fromFirestore(await docRef.get());
-    } on Exception catch (e) {
-      throw Exception(ErrorHandler.handle(e));
+    } catch (e) {
+      throw _wrapRepositoryError(e);
     }
   }
 
@@ -171,8 +181,8 @@ class OutfitRepository {
   }) async {
     try {
       await _outfitsRef(uid).doc(outfitId).update(data);
-    } on Exception catch (e) {
-      throw Exception(ErrorHandler.handle(e));
+    } catch (e) {
+      throw _wrapRepositoryError(e);
     }
   }
 
@@ -182,8 +192,8 @@ class OutfitRepository {
   }) async {
     try {
       await _outfitsRef(uid).doc(outfitId).delete();
-    } on Exception catch (e) {
-      throw Exception(ErrorHandler.handle(e));
+    } catch (e) {
+      throw _wrapRepositoryError(e);
     }
   }
 
@@ -197,8 +207,8 @@ class OutfitRepository {
       await _outfitsRef(uid).doc(outfitId).update({
         'wornDates': FieldValue.arrayUnion([Timestamp.fromDate(wornAt)]),
       });
-    } on Exception catch (e) {
-      throw Exception(ErrorHandler.handle(e));
+    } catch (e) {
+      throw _wrapRepositoryError(e);
     }
   }
 
@@ -221,8 +231,8 @@ class OutfitRepository {
         return true;
       }).toList();
       await _outfitsRef(uid).doc(outfitId).update({'wornDates': updated});
-    } on Exception catch (e) {
-      throw Exception(ErrorHandler.handle(e));
+    } catch (e) {
+      throw _wrapRepositoryError(e);
     }
   }
 
@@ -233,8 +243,8 @@ class OutfitRepository {
   }) async {
     try {
       await _outfitsRef(uid).doc(outfitId).update({'isFavorite': value});
-    } on Exception catch (e) {
-      throw Exception(ErrorHandler.handle(e));
+    } catch (e) {
+      throw _wrapRepositoryError(e);
     }
   }
 }

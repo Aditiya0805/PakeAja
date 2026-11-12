@@ -17,6 +17,7 @@ class LoginScreen extends ConsumerStatefulWidget {
 
 class _LoginScreenState extends ConsumerState<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
+  final _nameController = TextEditingController();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _obscurePassword = true;
@@ -24,6 +25,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
   @override
   void dispose() {
+    _nameController.dispose();
     _emailController.dispose();
     _passwordController.dispose();
     super.dispose();
@@ -35,6 +37,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     final success = await ref.read(authControllerProvider.notifier).login(
           email: _emailController.text,
           password: _passwordController.text,
+          name: _nameController.text,
         );
     if (success && mounted) {
       context.go('/');
@@ -42,10 +45,19 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   }
 
   Future<void> _googleSignIn() async {
+    final nameVal = _nameController.text.trim();
+    if (nameVal.isNotEmpty && nameVal.length < 2) {
+      _formKey.currentState?.validate();
+      return;
+    }
+
     setState(() => _isGoogleLoading = true);
-    final success =
-        await ref.read(authControllerProvider.notifier).signInWithGoogle();
-    setState(() => _isGoogleLoading = false);
+    final success = await ref
+        .read(authControllerProvider.notifier)
+        .signInWithGoogle(name: nameVal.isNotEmpty ? nameVal : null);
+    if (mounted) {
+      setState(() => _isGoogleLoading = false);
+    }
     if (success && mounted) {
       context.go('/');
     }
@@ -66,7 +78,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const SizedBox(height: 40),
+                const SizedBox(height: 24),
                 // Logo & Tagline
                 Center(
                   child: Column(
@@ -100,7 +112,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     ],
                   ),
                 ),
-                const SizedBox(height: 40),
+                const SizedBox(height: 28),
 
                 // Error message
                 if (errorMessage != null) ...[
@@ -127,10 +139,25 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   const SizedBox(height: 16),
                 ],
 
+                // Nama (tampil di aplikasi)
+                TextFormField(
+                  controller: _nameController,
+                  textCapitalization: TextCapitalization.words,
+                  textInputAction: TextInputAction.next,
+                  validator: Validators.optionalName,
+                  decoration: const InputDecoration(
+                    labelText: 'Nama',
+                    hintText: 'Masukkan nama untuk ditampilkan di aplikasi',
+                    prefixIcon: Icon(Icons.person_outline),
+                  ),
+                ),
+                const SizedBox(height: 16),
+
                 // Email
                 TextFormField(
                   controller: _emailController,
                   keyboardType: TextInputType.emailAddress,
+                  textInputAction: TextInputAction.next,
                   validator: Validators.email,
                   decoration: const InputDecoration(
                     labelText: 'Email',

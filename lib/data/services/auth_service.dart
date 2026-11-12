@@ -70,20 +70,78 @@ class AuthService {
   Future<AuthResult> login({
     required String email,
     required String password,
+    String? name,
   }) async {
     try {
       final credential = await _auth.signInWithEmailAndPassword(
         email: email.trim(),
         password: password,
       );
-      return AuthResult.ok(credential.user);
+      final user = credential.user;
+      final trimmedName = name?.trim() ?? '';
+
+      if (user != null) {
+        if (trimmedName.isNotEmpty) {
+          await _syncUserName(user, trimmedName);
+        } else {
+          await _ensureUserDocExists(user);
+        }
+      }
+
+      return AuthResult.ok(user);
     } on Exception catch (e) {
       return AuthResult.fail(ErrorHandler.handle(e));
     }
   }
 
+  /// Sinkronkan nama yang diinputkan user ke Firebase Auth & dokumen Firestore.
+  Future<void> _syncUserName(User user, String name) async {
+    try {
+      await user.updateDisplayName(name);
+    } catch (_) {
+      // Lanjutkan ke Firestore meskipun updateDisplayName gagal
+    }
+    try {
+      final userDoc = _firestore.collection('users').doc(user.uid);
+      final doc = await userDoc.get();
+      if (!doc.exists) {
+        await userDoc.set({
+          'name': name,
+          'email': user.email ?? '',
+          'photoUrl': user.photoURL,
+          'createdAt': FieldValue.serverTimestamp(),
+        });
+      } else {
+        await userDoc.set({'name': name}, SetOptions(merge: true));
+      }
+    } catch (_) {
+      // Jangan blokir proses login jika penulisan ke Firestore tertunda/offline
+    }
+  }
+
+  /// Pastikan dokumen user ada di Firestore saat login tanpa input nama.
+  Future<void> _ensureUserDocExists(User user) async {
+    try {
+      final userDoc = _firestore.collection('users').doc(user.uid);
+      final doc = await userDoc.get();
+      if (!doc.exists) {
+        final fallbackName = (user.displayName?.trim().isNotEmpty ?? false)
+            ? user.displayName!.trim()
+            : (user.email?.split('@').first ?? 'Pengguna');
+        await userDoc.set({
+          'name': fallbackName,
+          'email': user.email ?? '',
+          'photoUrl': user.photoURL,
+          'createdAt': FieldValue.serverTimestamp(),
+        });
+      }
+    } catch (_) {
+      // Abaikan agar tidak memblokir login
+    }
+  }
+
   // ==================== GOOGLE SIGN-IN ====================
-  Future<AuthResult> signInWithGoogle() async {
+  Future<AuthResult> signInWithGoogle({String? name}) async {
     if (kIsWeb) {
       return AuthResult.fail(
         'Login Google belum didukung di versi web. Silakan daftar/login dengan email dan password, atau gunakan aplikasi Android.',
@@ -107,21 +165,36 @@ class AuthService {
         return AuthResult.fail('Gagal login dengan Google.');
       }
 
+      final trimmedName = name?.trim() ?? '';
+      if (trimmedName.isNotEmpty) {
+        try {
+          await user.updateDisplayName(trimmedName);
+        } catch (_) {}
+      }
+
       // Buat/update dokumen user
       final userDoc = _firestore.collection('users').doc(user.uid);
       final doc = await userDoc.get();
       if (!doc.exists) {
         await userDoc.set({
-          'name': user.displayName ?? 'Pengguna',
+          'name': trimmedName.isNotEmpty
+              ? trimmedName
+              : (user.displayName ?? 'Pengguna'),
           'email': user.email ?? '',
           'photoUrl': user.photoURL,
           'createdAt': FieldValue.serverTimestamp(),
         });
       } else {
-        await userDoc.update({
+        final existingName = (doc.data()?['name'] as String?)?.trim() ?? '';
+        final resolvedName = trimmedName.isNotEmpty
+            ? trimmedName
+            : (existingName.isNotEmpty
+                ? existingName
+                : (user.displayName ?? 'Pengguna'));
+        await userDoc.set({
           'photoUrl': user.photoURL,
-          'name': user.displayName ?? doc['name'],
-        });
+          'name': resolvedName,
+        }, SetOptions(merge: true));
       }
 
       return AuthResult.ok(user);
@@ -207,15 +280,31 @@ class AuthService {
       final user = _auth.currentUser;
       if (user == null) return AuthResult.fail('Kamu belum login.');
 
-      if (name != null) {
-        await user.updateDisplayName(name.trim());
+      final trimmedName = name?.trim();
+      if (trimmedName != null && trimmedName.isNotEmpty) {
+        await user.updateDisplayName(trimmedName);
       }
 
       final data = <String, dynamic>{};
-      if (name != null) data['name'] = name.trim();
+      if (trimmedName != null && trimmedName.isNotEmpty) {
+        data['name'] = trimmedName;
+      }
       if (photoUrl != null) data['photoUrl'] = photoUrl;
 
-      await _firestore.collection('users').doc(user.uid).update(data);
+      if (data.isNotEmpty) {
+        final userDoc = _firestore.collection('users').doc(user.uid);
+        final doc = await userDoc.get();
+        if (!doc.exists) {
+          await userDoc.set({
+            'name': trimmedName ?? user.displayName ?? 'Pengguna',
+            'email': user.email ?? '',
+            'photoUrl': photoUrl ?? user.photoURL,
+            'createdAt': FieldValue.serverTimestamp(),
+          });
+        } else {
+          await userDoc.set(data, SetOptions(merge: true));
+        }
+      }
       return AuthResult.ok(user);
     } on Exception catch (e) {
       return AuthResult.fail(ErrorHandler.handle(e));

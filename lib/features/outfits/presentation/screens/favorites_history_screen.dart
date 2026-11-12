@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import 'package:pakeaja/core/theme/app_theme.dart';
 import 'package:pakeaja/core/utils/date_formatter.dart';
+import 'package:pakeaja/core/utils/error_handler.dart';
 import 'package:pakeaja/core/widgets/cloth_image_view.dart';
 import 'package:pakeaja/core/widgets/state_widgets.dart';
 import 'package:pakeaja/data/models/cloth_model.dart';
@@ -683,7 +684,7 @@ class _FavoritesHistoryScreenState extends ConsumerState<FavoritesHistoryScreen>
         child: Padding(
           padding: const EdgeInsets.symmetric(vertical: 40),
           child: ErrorWidgetPage(
-            message: favoritesState.error.toString(),
+            message: ErrorHandler.handle(favoritesState.error),
             onRetry: () => ref.invalidate(favoriteOutfitsProvider),
           ),
         ),

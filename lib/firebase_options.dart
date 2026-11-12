@@ -41,22 +41,21 @@ class DefaultFirebaseOptions {
     storageBucket: 'pakeaja.firebasestorage.app',
   );
 
-  // iOS: tambahkan GoogleService-Info.plist dan update nilai di sini
   static const ios = FirebaseOptions(
-    apiKey: 'AIzaSyBbH1pmRa6P6G8I6VOPNZdgbtDiyfjvZ4o',
-    appId: '1:548065215093:ios:000000000000000000000000', // ganti dengan iOS app ID
+    apiKey: 'AIzaSyDUBw4d_0pCeAAzz6UVzySAsaWN9W587O0',
+    appId: '1:548065215093:ios:ebbafda2afc0477e106e3c',
     messagingSenderId: '548065215093',
     projectId: 'pakeaja',
     storageBucket: 'pakeaja.firebasestorage.app',
     iosBundleId: 'com.example.pakeaja',
   );
 
-  // Web: aktifkan Web app di Firebase Console lalu update nilai ini
   static const web = FirebaseOptions(
-    apiKey: 'AIzaSyBbH1pmRa6P6G8I6VOPNZdgbtDiyfjvZ4o',
-    appId: '1:548065215093:web:000000000000000000000000', // ganti dengan Web app ID
+    apiKey: 'AIzaSyCH156ZE1NltAmGrCYeqZDBnQ2lvJa9pKA',
+    appId: '1:548065215093:web:a6471475a6691238106e3c',
     messagingSenderId: '548065215093',
     projectId: 'pakeaja',
+    authDomain: 'pakeaja.firebaseapp.com',
     storageBucket: 'pakeaja.firebasestorage.app',
   );
 }

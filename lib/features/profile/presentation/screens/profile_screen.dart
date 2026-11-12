@@ -18,6 +18,11 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   @override
   Widget build(BuildContext context) {
     final user = ref.watch(userDataProvider).valueOrNull;
+    final authUser = ref.watch(authStateProvider).valueOrNull;
+    final displayName = ref.watch(effectiveUserNameProvider);
+    final email = (user?.email.isNotEmpty ?? false)
+        ? user!.email
+        : (authUser?.email ?? '');
     final stats = ref.watch(userStatsProvider);
 
     return Scaffold(
@@ -40,7 +45,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 const SizedBox(height: 20),
 
                 // 2. Kartu Profil Pengguna
-                _buildUserProfileCard(user),
+                _buildUserProfileCard(user, displayName, email),
                 const SizedBox(height: 18),
 
                 // 3. Statistik Lemari & Outfit
@@ -139,7 +144,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   }
 
   // ==================== 2. KARTU PROFIL ====================
-  Widget _buildUserProfileCard(dynamic user) {
+  Widget _buildUserProfileCard(dynamic user, String displayName, String email) {
     return Container(
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
@@ -192,7 +197,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  user?.name ?? 'Pengguna PakeAja',
+                  displayName,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
@@ -201,7 +208,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 ),
                 const SizedBox(height: 3),
                 Text(
-                  user?.email ?? '',
+                  email,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
@@ -333,8 +340,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           ),
         ],
       ),
-      child: ClipRRect(
+      child: Material(
+        color: Colors.transparent,
         borderRadius: BorderRadius.circular(18),
+        clipBehavior: Clip.antiAlias,
         child: Column(
           children: [
             _menuTile(
@@ -441,8 +450,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         borderRadius: BorderRadius.circular(18),
         border: Border.all(color: const Color(0xFFFDE8E8)),
       ),
-      child: ClipRRect(
+      child: Material(
+        color: Colors.transparent,
         borderRadius: BorderRadius.circular(18),
+        clipBehavior: Clip.antiAlias,
         child: Column(
           children: [
             ListTile(
@@ -582,41 +593,45 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   }
 
   Future<void> _showEditProfileDialog() async {
-    final user = ref.read(userDataProvider).valueOrNull;
-    final nameController = TextEditingController(text: user?.name ?? '');
-
-    final saved = await showDialog<bool>(
+    final currentName = ref.read(effectiveUserNameProvider);
+    final newName = await showDialog<String>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Edit Profil'),
-        content: TextField(
-          controller: nameController,
-          decoration: const InputDecoration(
-            labelText: 'Nama Lengkap',
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Batal'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(context, true),
-            style: FilledButton.styleFrom(
-              backgroundColor: AppTheme.primaryColor,
-            ),
-            child: const Text('Simpan'),
-          ),
-        ],
+      builder: (context) => _EditProfileDialog(
+        initialName: currentName == 'Pengguna PakeAja' ? '' : currentName,
       ),
     );
 
-    if (saved == true && nameController.text.trim().isNotEmpty) {
-      await ref
+    if (newName != null && newName.isNotEmpty) {
+      if (newName.length < 2) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Nama terlalu pendek (minimal 2 karakter).'),
+              backgroundColor: AppTheme.errorColor,
+            ),
+          );
+        }
+        return;
+      }
+
+      final success = await ref
           .read(updateProfileProvider.notifier)
-          .updateName(nameController.text);
+          .updateName(newName);
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              success
+                  ? 'Nama berhasil diubah menjadi "$newName".'
+                  : 'Gagal memperbarui nama. Coba lagi.',
+            ),
+            backgroundColor:
+                success ? AppTheme.successColor : AppTheme.errorColor,
+          ),
+        );
+      }
     }
-    nameController.dispose();
   }
 
   void _showAboutDialog() {
@@ -644,6 +659,59 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         content: Text('$feature akan segera hadir.'),
         backgroundColor: AppTheme.warningColor,
       ),
+    );
+  }
+}
+
+class _EditProfileDialog extends StatefulWidget {
+  final String initialName;
+
+  const _EditProfileDialog({required this.initialName});
+
+  @override
+  State<_EditProfileDialog> createState() => _EditProfileDialogState();
+}
+
+class _EditProfileDialogState extends State<_EditProfileDialog> {
+  late final TextEditingController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = TextEditingController(text: widget.initialName);
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Edit Profil'),
+      content: TextField(
+        controller: _controller,
+        textCapitalization: TextCapitalization.words,
+        decoration: const InputDecoration(
+          labelText: 'Nama Lengkap',
+          hintText: 'Masukkan nama kamu',
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Batal'),
+        ),
+        FilledButton(
+          onPressed: () => Navigator.pop(context, _controller.text.trim()),
+          style: FilledButton.styleFrom(
+            backgroundColor: AppTheme.primaryColor,
+          ),
+          child: const Text('Simpan'),
+        ),
+      ],
     );
   }
 }

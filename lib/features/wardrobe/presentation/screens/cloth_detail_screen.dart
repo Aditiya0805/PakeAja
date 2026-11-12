@@ -7,6 +7,7 @@ import 'package:go_router/go_router.dart';
 import 'package:pakeaja/core/providers/service_providers.dart';
 import 'package:pakeaja/core/theme/app_theme.dart';
 import 'package:pakeaja/core/utils/date_formatter.dart';
+import 'package:pakeaja/core/utils/error_handler.dart';
 import 'package:pakeaja/core/widgets/custom_button.dart';
 import 'package:pakeaja/core/widgets/state_widgets.dart';
 import 'package:pakeaja/data/models/cloth_model.dart';
@@ -295,8 +296,10 @@ class _ClothDetailScreenState extends ConsumerState<ClothDetailScreen> {
                 );
                 context.pop();
               } else {
-                final err = ref.read(deleteClothProvider).error?.toString() ??
-                    'Gagal menghapus pakaian.';
+                final rawErr = ref.read(deleteClothProvider).error;
+                final err = rawErr != null
+                    ? ErrorHandler.handle(rawErr)
+                    : 'Gagal menghapus pakaian.';
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
                     content: Text('Gagal menghapus: $err'),

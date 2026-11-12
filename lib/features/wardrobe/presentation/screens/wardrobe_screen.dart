@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 
 import 'package:pakeaja/core/constants/app_constants.dart';
 import 'package:pakeaja/core/theme/app_theme.dart';
+import 'package:pakeaja/core/utils/error_handler.dart';
 import 'package:pakeaja/core/widgets/clothing_card.dart';
 import 'package:pakeaja/core/widgets/state_widgets.dart';
 import 'package:pakeaja/data/models/cloth_model.dart';
@@ -902,7 +903,7 @@ class _WardrobeScreenState extends ConsumerState<WardrobeScreen> {
         child: Padding(
           padding: const EdgeInsets.symmetric(vertical: 40),
           child: ErrorWidgetPage(
-            message: clothesState.error.toString(),
+            message: ErrorHandler.handle(clothesState.error),
             onRetry: () => ref.invalidate(clothesListProvider),
           ),
         ),
@@ -1432,8 +1433,10 @@ class _WardrobeScreenState extends ConsumerState<WardrobeScreen> {
                   ),
                 );
               } else {
-                final err = ref.read(deleteClothProvider).error?.toString() ??
-                    'Gagal menghapus pakaian.';
+                final rawErr = ref.read(deleteClothProvider).error;
+                final err = rawErr != null
+                    ? ErrorHandler.handle(rawErr)
+                    : 'Gagal menghapus pakaian.';
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
                     content: Text('Gagal menghapus: $err'),

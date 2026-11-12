@@ -29,7 +29,7 @@ class UserRepository {
     required Map<String, dynamic> data,
   }) async {
     try {
-      await _db.collection('users').doc(uid).update(data);
+      await _db.collection('users').doc(uid).set(data, SetOptions(merge: true));
     } on Exception catch (e) {
       throw Exception(ErrorHandler.handle(e));
     }

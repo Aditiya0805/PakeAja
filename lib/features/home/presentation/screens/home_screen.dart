@@ -125,7 +125,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     }
 
     final greeting = _getGreeting();
-    final userName = user?.name.split(' ').first ?? 'Sarah';
+    final fullName = ref.watch(effectiveUserNameProvider).trim();
+    final userName = fullName.isNotEmpty
+        ? fullName.split(RegExp(r'\s+')).first
+        : 'Pengguna';
 
     return Scaffold(
       backgroundColor: AppTheme.backgroundColor,
@@ -218,6 +221,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               const SizedBox(height: 2),
               Text(
                 'Halo, $userName!',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
                 style: const TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.bold,

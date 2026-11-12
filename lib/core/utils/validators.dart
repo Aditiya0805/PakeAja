@@ -30,6 +30,18 @@ class Validators {
     return null;
   }
 
+  /// Validasi nama opsional (misal pada halaman login): kosong diperbolehkan,
+  /// namun jika diisi minimal 2 karakter.
+  static String? optionalName(String? value) {
+    if (value == null || value.trim().isEmpty) {
+      return null;
+    }
+    if (value.trim().length < 2) {
+      return 'Nama terlalu pendek';
+    }
+    return null;
+  }
+
   static String? clothName(String? value) {
     if (value == null || value.trim().isEmpty) {
       return 'Nama pakaian wajib diisi';
