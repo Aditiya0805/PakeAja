@@ -1,10 +1,20 @@
-// File ini di-generate berdasarkan google-services.json project PakeAja.
-// Project ID: pakeaja | Project Number: 548065215093
+// Konfigurasi Firebase diambil secara aman dari file .env menggunakan flutter_dotenv.
 
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class DefaultFirebaseOptions {
+  static String _requireEnv(String key) {
+    final value = dotenv.env[key]?.trim();
+    if (value == null || value.isEmpty) {
+      throw StateError(
+        'Environment variable "$key" belum diset di file .env.',
+      );
+    }
+    return value;
+  }
+
   static FirebaseOptions get currentPlatform {
     if (kIsWeb) {
       return web;
@@ -33,29 +43,29 @@ class DefaultFirebaseOptions {
     }
   }
 
-  static const android = FirebaseOptions(
-    apiKey: 'AIzaSyBbH1pmRa6P6G8I6VOPNZdgbtDiyfjvZ4o',
-    appId: '1:548065215093:android:9fc44bb9b04d953c106e3c',
-    messagingSenderId: '548065215093',
-    projectId: 'pakeaja',
-    storageBucket: 'pakeaja.firebasestorage.app',
-  );
+  static FirebaseOptions get android => FirebaseOptions(
+        apiKey: _requireEnv('FIREBASE_ANDROID_API_KEY'),
+        appId: _requireEnv('FIREBASE_ANDROID_APP_ID'),
+        messagingSenderId: _requireEnv('FIREBASE_MESSAGING_SENDER_ID'),
+        projectId: _requireEnv('FIREBASE_PROJECT_ID'),
+        storageBucket: _requireEnv('FIREBASE_STORAGE_BUCKET'),
+      );
 
-  static const ios = FirebaseOptions(
-    apiKey: 'AIzaSyDUBw4d_0pCeAAzz6UVzySAsaWN9W587O0',
-    appId: '1:548065215093:ios:ebbafda2afc0477e106e3c',
-    messagingSenderId: '548065215093',
-    projectId: 'pakeaja',
-    storageBucket: 'pakeaja.firebasestorage.app',
-    iosBundleId: 'com.example.pakeaja',
-  );
+  static FirebaseOptions get ios => FirebaseOptions(
+        apiKey: _requireEnv('FIREBASE_IOS_API_KEY'),
+        appId: _requireEnv('FIREBASE_IOS_APP_ID'),
+        messagingSenderId: _requireEnv('FIREBASE_MESSAGING_SENDER_ID'),
+        projectId: _requireEnv('FIREBASE_PROJECT_ID'),
+        storageBucket: _requireEnv('FIREBASE_STORAGE_BUCKET'),
+        iosBundleId: _requireEnv('FIREBASE_IOS_BUNDLE_ID'),
+      );
 
-  static const web = FirebaseOptions(
-    apiKey: 'AIzaSyCH156ZE1NltAmGrCYeqZDBnQ2lvJa9pKA',
-    appId: '1:548065215093:web:a6471475a6691238106e3c',
-    messagingSenderId: '548065215093',
-    projectId: 'pakeaja',
-    authDomain: 'pakeaja.firebaseapp.com',
-    storageBucket: 'pakeaja.firebasestorage.app',
-  );
+  static FirebaseOptions get web => FirebaseOptions(
+        apiKey: _requireEnv('FIREBASE_WEB_API_KEY'),
+        appId: _requireEnv('FIREBASE_WEB_APP_ID'),
+        messagingSenderId: _requireEnv('FIREBASE_MESSAGING_SENDER_ID'),
+        projectId: _requireEnv('FIREBASE_PROJECT_ID'),
+        authDomain: _requireEnv('FIREBASE_WEB_AUTH_DOMAIN'),
+        storageBucket: _requireEnv('FIREBASE_STORAGE_BUCKET'),
+      );
 }

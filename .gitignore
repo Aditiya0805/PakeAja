@@ -5,6 +5,11 @@ build/
 .flutter-plugins
 .flutter-plugins-dependencies
 
+# Environment Variables & Secrets
+.env
+.env.*
+!.env.example
+
 # Firebase
 # Jangan commit file konfigurasi Firebase asli (opsional, tapi disarankan untuk .env/secret)
 # android/app/google-services.json
