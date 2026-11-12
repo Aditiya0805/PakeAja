@@ -47,7 +47,7 @@ class ClothingCard extends StatelessWidget {
 
   String _getStyleLabel() {
     if (cloth.styles.isNotEmpty) {
-      return cloth.styles.first.label;
+      return cloth.styles.map((s) => s.label).join(', ');
     }
     return 'Casual';
   }
@@ -210,11 +210,16 @@ class ClothingCard extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(width: 4),
-                    Text(
-                      _getStyleLabel(),
-                      style: const TextStyle(
-                        fontSize: 11.5,
-                        color: Color(0xFF757575),
+                    Flexible(
+                      child: Text(
+                        _getStyleLabel(),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        textAlign: TextAlign.end,
+                        style: const TextStyle(
+                          fontSize: 11.5,
+                          color: Color(0xFF757575),
+                        ),
                       ),
                     ),
                   ],

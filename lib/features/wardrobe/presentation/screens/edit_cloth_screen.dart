@@ -7,6 +7,7 @@ import 'package:pakeaja/core/providers/service_providers.dart';
 import 'package:pakeaja/core/theme/app_theme.dart';
 import 'package:pakeaja/core/utils/error_handler.dart';
 import 'package:pakeaja/core/widgets/cloth_image_view.dart';
+import 'package:pakeaja/core/widgets/cloth_style_selector.dart';
 import 'package:pakeaja/core/widgets/custom_button.dart';
 import 'package:pakeaja/core/widgets/state_widgets.dart';
 import 'package:pakeaja/data/models/cloth_model.dart';
@@ -28,7 +29,7 @@ class _EditClothScreenState extends ConsumerState<EditClothScreen> {
 
   ClothCategory _category = ClothCategory.top;
   String _color = 'black';
-  ClothStyle _style = ClothStyle.casual;
+  List<ClothStyle> _selectedStyles = [ClothStyle.casual];
   ClothWeather _weather = ClothWeather.cool;
 
   String? _newBase64Image;
@@ -56,7 +57,9 @@ class _EditClothScreenState extends ConsumerState<EditClothScreen> {
         _nameController.text = cloth.name;
         _category = cloth.category;
         _color = cloth.color;
-        _style = cloth.styles.isNotEmpty ? cloth.styles.first : ClothStyle.casual;
+        _selectedStyles = cloth.styles.isNotEmpty
+            ? List<ClothStyle>.from(cloth.styles)
+            : [ClothStyle.casual];
         _weather = cloth.weather;
         _loading = false;
       });
@@ -129,7 +132,7 @@ class _EditClothScreenState extends ConsumerState<EditClothScreen> {
       'name': _nameController.text.trim(),
       'category': _category.value,
       'color': _color,
-      'styles': [_style.value],
+      'styles': _selectedStyles.map((s) => s.value).toList(),
       'weather': _weather.value,
     };
 
@@ -317,6 +320,7 @@ class _EditClothScreenState extends ConsumerState<EditClothScreen> {
                 // Nama
                 TextFormField(
                   controller: _nameController,
+                  onChanged: (_) => setState(() {}),
                   validator: (v) {
                     if (v == null || v.trim().isEmpty) {
                       return 'Nama pakaian wajib diisi';
@@ -364,18 +368,12 @@ class _EditClothScreenState extends ConsumerState<EditClothScreen> {
                 const SizedBox(height: 16),
 
                 // Gaya
-                const Text('Gaya',
-                    style: TextStyle(fontWeight: FontWeight.w600)),
-                const SizedBox(height: 8),
-                Wrap(
-                  spacing: 8,
-                  children: ClothStyle.values.map((s) {
-                    return ChoiceChip(
-                      label: Text(s.label),
-                      selected: _style == s,
-                      onSelected: (_) => setState(() => _style = s),
-                    );
-                  }).toList(),
+                ClothStyleSelector(
+                  selectedStyles: _selectedStyles,
+                  clothName: _nameController.text,
+                  category: _category,
+                  onChanged: (next) =>
+                      setState(() => _selectedStyles = next),
                 ),
                 const SizedBox(height: 16),
 

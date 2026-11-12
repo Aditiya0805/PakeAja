@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import 'package:pakeaja/core/providers/service_providers.dart';
 import 'package:pakeaja/core/theme/app_theme.dart';
 import 'package:pakeaja/core/widgets/cloth_image_view.dart';
 import 'package:pakeaja/data/models/cloth_model.dart';
@@ -145,11 +146,14 @@ class _RecommendationScreenState extends ConsumerState<RecommendationScreen> {
     // Otomatis buat rekomendasi jika pakaian sudah cukup dan rekomendasi masih kosong
     if (_hasEnoughClothes(clothes) &&
         recState.recommendation == null &&
+        recState.error == null &&
         !recState.isLoading) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
+        final latest = ref.read(recommendationProvider);
         if (mounted &&
-            ref.read(recommendationProvider).recommendation == null &&
-            !ref.read(recommendationProvider).isLoading) {
+            latest.recommendation == null &&
+            latest.error == null &&
+            !latest.isLoading) {
           ref.read(recommendationProvider.notifier).recommend(_getOccasionKey());
         }
       });
@@ -206,6 +210,11 @@ class _RecommendationScreenState extends ConsumerState<RecommendationScreen> {
                   )
                 else if (!_hasEnoughClothes(clothes))
                   _buildMissingClothesWidget()
+                else if (recState.error != null)
+                  _buildIncompatibleOccasionWidget(
+                    recState.error!,
+                    _getOccasionKey(),
+                  )
                 else if (recState.recommendation != null)
                   _buildRecommendationCard(
                     rec: recState.recommendation!,
@@ -777,7 +786,7 @@ class _RecommendationScreenState extends ConsumerState<RecommendationScreen> {
 
           // Subtitle Gaya & Warna
           Text(
-            '${item.styles.isNotEmpty ? item.styles.first.label : 'Casual'} • ${item.colorLabel}',
+            '${item.styles.isNotEmpty ? item.styles.map((s) => s.label).join(', ') : 'Casual'} • ${item.colorLabel}',
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: const TextStyle(
@@ -988,30 +997,30 @@ class _RecommendationScreenState extends ConsumerState<RecommendationScreen> {
 
   // ==================== SWAP MODAL ====================
   void _openSwapModal(ClothCategory category, List<ClothModel> clothes) {
-    // Cari semua pakaian yang kategorinya sama
+    final occasionKey = _getOccasionKey();
+    final service = ref.read(recommendationServiceProvider);
+
+    // Cari pakaian yang kategorinya sama DAN layak untuk agenda yang sedang dipilih
     final candidates = clothes.where((c) {
-      if (category == ClothCategory.outer) {
-        return c.category == ClothCategory.outer ||
-            c.category == ClothCategory.accessory;
-      }
-      if (category == ClothCategory.top) {
-        return c.category == ClothCategory.top ||
-            c.category == ClothCategory.onepiece;
-      }
-      return c.category == category;
+      final matchesCategory = category == ClothCategory.outer
+          ? (c.category == ClothCategory.outer ||
+              c.category == ClothCategory.accessory)
+          : category == ClothCategory.top
+              ? (c.category == ClothCategory.top ||
+                  c.category == ClothCategory.onepiece)
+              : c.category == category;
+      return matchesCategory && service.isSuitableForOccasion(c, occasionKey);
     }).toList();
 
-    // Urutkan pakaian yang paling sesuai dengan gaya agenda yang sedang dipilih
-    final occasionKey = _getOccasionKey().toLowerCase();
+    // Urutkan yang paling tepat sesuai gaya agenda
+    final normOccasion = service.normalizeOccasion(occasionKey);
     candidates.sort((a, b) {
-      final aMatches = a.styles.any((s) =>
-          s.value.toLowerCase().contains(occasionKey) ||
-          occasionKey.contains(s.value.toLowerCase()));
-      final bMatches = b.styles.any((s) =>
-          s.value.toLowerCase().contains(occasionKey) ||
-          occasionKey.contains(s.value.toLowerCase()));
-      if (aMatches && !bMatches) return -1;
-      if (!aMatches && bMatches) return 1;
+      final aStyles = service.getEffectiveStyleValues(a);
+      final bStyles = service.getEffectiveStyleValues(b);
+      final aExact = aStyles.contains(normOccasion);
+      final bExact = bStyles.contains(normOccasion);
+      if (aExact && !bExact) return -1;
+      if (!aExact && bExact) return 1;
       return b.createdAt.compareTo(a.createdAt);
     });
 
@@ -1064,7 +1073,8 @@ class _RecommendationScreenState extends ConsumerState<RecommendationScreen> {
                       padding: const EdgeInsets.symmetric(vertical: 30),
                       child: Center(
                         child: Text(
-                          'Belum ada pilihan ${category.label.toLowerCase()} lain di lemarimu.',
+                          'Belum ada ${category.label.toLowerCase()} yang cocok untuk kategori $occasionKey di lemarimu.',
+                          textAlign: TextAlign.center,
                           style: const TextStyle(color: Color(0xFF757575)),
                         ),
                       ),
@@ -1095,7 +1105,7 @@ class _RecommendationScreenState extends ConsumerState<RecommendationScreen> {
                                   fontWeight: FontWeight.bold, fontSize: 14),
                             ),
                             subtitle: Text(
-                              '${item.styles.isNotEmpty ? item.styles.first.label : 'Casual'} • ${item.colorLabel}',
+                              '${item.styles.isNotEmpty ? item.styles.map((s) => s.label).join(', ') : 'Casual'} • ${item.colorLabel}',
                               style: const TextStyle(
                                   fontSize: 12, color: Color(0xFF757575)),
                             ),
@@ -1206,6 +1216,78 @@ class _RecommendationScreenState extends ConsumerState<RecommendationScreen> {
         ),
       );
     }
+  }
+
+  Widget _buildIncompatibleOccasionWidget(
+    String errorMessage,
+    String occasionKey,
+  ) {
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFDF2F2),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFFAD1D1)),
+      ),
+      child: Column(
+        children: [
+          const Icon(Icons.style_outlined,
+              size: 40, color: AppTheme.primaryColor),
+          const SizedBox(height: 10),
+          Text(
+            'Belum Ada Pakaian untuk $occasionKey',
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 16,
+              color: AppTheme.textPrimary,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            errorMessage,
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              fontSize: 12.5,
+              color: Color(0xFF5A626A),
+              height: 1.4,
+            ),
+          ),
+          const SizedBox(height: 14),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            alignment: WrapAlignment.center,
+            children: [
+              ElevatedButton.icon(
+                onPressed: () => context.push('/cloth/add'),
+                icon: const Icon(Icons.add, size: 18, color: Colors.white),
+                label: Text(
+                  'Tambah Pakaian $occasionKey',
+                  style: const TextStyle(color: Colors.white),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppTheme.primaryColor,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                ),
+              ),
+              if (occasionKey != 'Santai')
+                OutlinedButton(
+                  onPressed: () => _onAgendaSelected('Santai Hangout'),
+                  style: OutlinedButton.styleFrom(
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
+                  child: const Text('Lihat Santai'),
+                ),
+            ],
+          ),
+        ],
+      ),
+    );
   }
 
   Widget _buildMissingClothesWidget() {

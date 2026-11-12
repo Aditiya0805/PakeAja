@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pakeaja/data/models/cloth_model.dart';
 import 'package:pakeaja/data/services/recommendation_service.dart';
+import 'package:pakeaja/features/wardrobe/providers/wardrobe_provider.dart';
 
 void main() {
   late RecommendationService service;
@@ -316,6 +317,202 @@ void main() {
     expect(casualRec.itemIds.contains('top_kaos'), isTrue);
     expect(casualRec.itemIds.contains('bottom_jeans'), isTrue);
     expect(casualRec.itemIds.contains('shoe_sneakers'), isTrue);
+  });
+
+  test('Casual clothes usable for Santai are rejected for Formal', () {
+    final casualOnlyWardrobe = [
+      ClothModel(
+        id: 'top_santai',
+        name: 'Kaos Oblong Santai',
+        category: ClothCategory.top,
+        color: 'white',
+        styles: const [ClothStyle.casual],
+        weather: ClothWeather.hot,
+        imageUrl: '',
+        createdAt: DateTime.now(),
+      ),
+      ClothModel(
+        id: 'bottom_santai',
+        name: 'Celana Pendek Pantai',
+        category: ClothCategory.bottom,
+        color: 'cream',
+        styles: const [ClothStyle.casual],
+        weather: ClothWeather.hot,
+        imageUrl: '',
+        createdAt: DateTime.now(),
+      ),
+      ClothModel(
+        id: 'shoe_santai',
+        name: 'Sandal Slop Santai',
+        category: ClothCategory.shoes,
+        color: 'black',
+        styles: const [ClothStyle.casual],
+        weather: ClothWeather.hot,
+        imageUrl: '',
+        createdAt: DateTime.now(),
+      ),
+    ];
+
+    final santaiRec = service.recommend(
+      clothes: casualOnlyWardrobe,
+      occasion: 'Santai',
+    );
+    expect(santaiRec.itemIds, containsAll(['top_santai', 'bottom_santai', 'shoe_santai']));
+
+    expect(
+      () => service.recommend(
+        clothes: casualOnlyWardrobe,
+        occasion: 'Formal',
+      ),
+      throwsA(isA<NoSuitableOutfitException>()),
+    );
+
+    expect(
+      () => service.recommend(
+        clothes: casualOnlyWardrobe,
+        occasion: 'Semi Formal',
+      ),
+      throwsA(isA<NoSuitableOutfitException>()),
+    );
+  });
+
+  test('Strict Formal clothes are not forced into Santai or Olahraga', () {
+    final formalOnlyWardrobe = [
+      ClothModel(
+        id: 'top_jas',
+        name: 'Jas Formal Hitam',
+        category: ClothCategory.top,
+        color: 'black',
+        styles: const [ClothStyle.formal],
+        weather: ClothWeather.cool,
+        imageUrl: '',
+        createdAt: DateTime.now(),
+      ),
+      ClothModel(
+        id: 'bottom_bahan',
+        name: 'Celana Bahan Formal',
+        category: ClothCategory.bottom,
+        color: 'black',
+        styles: const [ClothStyle.formal],
+        weather: ClothWeather.cool,
+        imageUrl: '',
+        createdAt: DateTime.now(),
+      ),
+      ClothModel(
+        id: 'shoe_pantofel',
+        name: 'Sepatu Pantofel Kulit',
+        category: ClothCategory.shoes,
+        color: 'black',
+        styles: const [ClothStyle.formal],
+        weather: ClothWeather.cool,
+        imageUrl: '',
+        createdAt: DateTime.now(),
+      ),
+    ];
+
+    final formalRec = service.recommend(
+      clothes: formalOnlyWardrobe,
+      occasion: 'Formal',
+    );
+    expect(formalRec.itemIds, containsAll(['top_jas', 'bottom_bahan', 'shoe_pantofel']));
+
+    expect(
+      () => service.recommend(
+        clothes: formalOnlyWardrobe,
+        occasion: 'Santai',
+      ),
+      throwsA(isA<NoSuitableOutfitException>()),
+    );
+
+    expect(
+      () => service.recommend(
+        clothes: formalOnlyWardrobe,
+        occasion: 'Olahraga',
+      ),
+      throwsA(isA<NoSuitableOutfitException>()),
+    );
+  });
+
+  test('Versatile Smart-Casual items fit Santai/Kuliah/Semi Formal without leaking into Formal', () {
+    final smartCasualWardrobe = [
+      ClothModel(
+        id: 'top_polo',
+        name: 'Polo Shirt Pique',
+        category: ClothCategory.top,
+        color: 'navy',
+        styles: const [ClothStyle.semiFormal, ClothStyle.casual],
+        weather: ClothWeather.cool,
+        imageUrl: '',
+        createdAt: DateTime.now(),
+      ),
+      ClothModel(
+        id: 'bottom_chino',
+        name: 'Celana Chino Beige',
+        category: ClothCategory.bottom,
+        color: 'cream',
+        styles: const [ClothStyle.semiFormal, ClothStyle.casual],
+        weather: ClothWeather.cool,
+        imageUrl: '',
+        createdAt: DateTime.now(),
+      ),
+      ClothModel(
+        id: 'shoe_court',
+        name: 'Court Sneakers Putih',
+        category: ClothCategory.shoes,
+        color: 'white',
+        styles: const [ClothStyle.casual],
+        weather: ClothWeather.cool,
+        imageUrl: '',
+        createdAt: DateTime.now(),
+      ),
+    ];
+
+    expect(
+      service.recommend(clothes: smartCasualWardrobe, occasion: 'Santai').itemIds,
+      isNotEmpty,
+    );
+    expect(
+      service.recommend(clothes: smartCasualWardrobe, occasion: 'Kuliah').itemIds,
+      isNotEmpty,
+    );
+    expect(
+      service.recommend(clothes: smartCasualWardrobe, occasion: 'Semi Formal').itemIds,
+      isNotEmpty,
+    );
+    expect(
+      () => service.recommend(clothes: smartCasualWardrobe, occasion: 'Formal'),
+      throwsA(isA<NoSuitableOutfitException>()),
+    );
+  });
+
+  test('suggestStylesForName and ClothFilter classify clothing accurately', () {
+    expect(
+      service.suggestStylesForName('Kemeja Pantai Santai'),
+      equals(const [ClothStyle.casual]),
+    );
+    expect(
+      service.suggestStylesForName('Kemeja Batik Formal'),
+      equals(const [ClothStyle.formal, ClothStyle.semiFormal]),
+    );
+    expect(
+      service.suggestStylesForName('Jersey Futsal Dryfit'),
+      equals(const [ClothStyle.sport]),
+    );
+
+    final kaosSantai = ClothModel(
+      id: 'c1',
+      name: 'Kaos Polos Santai',
+      category: ClothCategory.top,
+      color: 'black',
+      styles: const [ClothStyle.casual],
+      weather: ClothWeather.hot,
+      imageUrl: '',
+      createdAt: DateTime.now(),
+    );
+    const formalFilter = ClothFilter(style: 'formal');
+    const casualFilter = ClothFilter(style: 'casual');
+    expect(casualFilter.matches(kaosSantai), isTrue);
+    expect(formalFilter.matches(kaosSantai), isFalse);
   });
 }
 

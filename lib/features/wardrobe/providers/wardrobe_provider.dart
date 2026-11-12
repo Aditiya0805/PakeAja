@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pakeaja/core/providers/service_providers.dart';
 import 'package:pakeaja/core/utils/error_handler.dart';
 import 'package:pakeaja/data/models/cloth_model.dart';
+import 'package:pakeaja/data/services/recommendation_service.dart';
 import 'package:pakeaja/features/auth/providers/auth_provider.dart'
     show authStateProvider;
 
@@ -53,11 +54,14 @@ class ClothFilter {
     );
   }
 
+  static final _styleClassifier = RecommendationService();
+
   bool matches(ClothModel cloth, {Set<String> washingIds = const {}}) {
     if (category != 'all' && cloth.category.value != category) return false;
     if (color != 'all' && cloth.color != color) return false;
-    if (style != 'all' && !cloth.styles.any((s) => s.value == style)) {
-      return false;
+    if (style != 'all') {
+      final effectiveStyles = _styleClassifier.getEffectiveStyleValues(cloth);
+      if (!effectiveStyles.contains(style)) return false;
     }
     if (status == 'ready' && washingIds.contains(cloth.id)) return false;
     if (status == 'washing' && !washingIds.contains(cloth.id)) return false;

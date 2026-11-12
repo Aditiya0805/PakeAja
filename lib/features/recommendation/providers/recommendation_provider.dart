@@ -33,11 +33,13 @@ class RecommendationState {
   RecommendationState copyWith({
     bool? isLoading,
     OutfitRecommendation? recommendation,
+    bool clearRecommendation = false,
     String? error,
   }) {
     return RecommendationState(
       isLoading: isLoading ?? this.isLoading,
-      recommendation: recommendation ?? this.recommendation,
+      recommendation:
+          clearRecommendation ? null : (recommendation ?? this.recommendation),
       error: error,
     );
   }
@@ -71,14 +73,22 @@ class RecommendationNotifier extends StateNotifier<RecommendationState> {
 
   Future<void> recommend(String occasion) async {
     _currentOccasion = occasion;
-    state = state.copyWith(isLoading: true, error: null);
+    state = state.copyWith(
+      isLoading: true,
+      clearRecommendation: true,
+      error: null,
+    );
     try {
       final clothes = _ref.read(clothesForRecommendationProvider);
       final service = _ref.read(recommendationServiceProvider);
 
-      // Cek kelengkapan
+      // Cek kelengkapan umum
       if (!service.canRecommend(clothes)) {
-        state = state.copyWith(isLoading: false, error: 'Belum cukup');
+        state = state.copyWith(
+          isLoading: false,
+          clearRecommendation: true,
+          error: 'Belum cukup',
+        );
         return;
       }
 
@@ -97,7 +107,11 @@ class RecommendationNotifier extends StateNotifier<RecommendationState> {
 
       state = RecommendationState(recommendation: result);
     } on Exception catch (e) {
-      state = state.copyWith(isLoading: false, error: ErrorHandler.handle(e));
+      state = state.copyWith(
+        isLoading: false,
+        clearRecommendation: true,
+        error: ErrorHandler.handle(e),
+      );
     }
   }
 

@@ -1,16 +1,34 @@
 import 'package:pakeaja/data/models/cloth_model.dart';
 import 'package:pakeaja/data/models/outfit_model.dart';
 
-/// Intelligent Rule-Based Outfit Recommendation Engine
-/// Mengotomatisasi pencocokan antar pakaian (Top + Bottom / Onepiece + Shoes + Outer)
-/// sesuai dengan agenda / occasion (Semi-Formal, Formal, Santai, Kuliah, Olahraga, dll).
+/// Exception khusus ketika lemari tidak memiliki kombinasi pakaian
+/// yang pantas untuk kategori / agenda tertentu.
+class NoSuitableOutfitException implements Exception {
+  final String occasion;
+  final List<String> missingSlots;
+  final String message;
+
+  NoSuitableOutfitException({
+    required this.occasion,
+    required this.missingSlots,
+    required this.message,
+  });
+
+  @override
+  String toString() => message;
+}
+
+/// Intelligent Rule-Based Outfit Recommendation & Grouping Engine
+/// Mengelompokkan pakaian berdasarkan kelayakan gaya/agenda secara ketat
+/// (misal: pakaian Santai tidak dipaksakan ke Formal, Sport tidak ke Semi-Formal)
+/// serta mencocokkan antar item (Top + Bottom / Onepiece + Shoes + Outer).
 class RecommendationService {
   // Bobot scoring kriteria utama (Total 100)
-  static const double wOccasion = 35.0; // Kesesuaian masing-masing pakaian dengan acara
-  static const double wPairStyle = 30.0; // Keselarasan gaya antar pakaian (Top x Bottom x Shoes)
-  static const double wShoe = 15.0; // Kesesuaian alas kaki / sepatu dengan tema gaya
-  static const double wColor = 10.0; // Keharmonisan warna
-  static const double wRotation = 10.0; // Rotasi pemakaian (pakaian yang belum baru dipakai)
+  static const double wOccasion = 35.0;
+  static const double wPairStyle = 30.0;
+  static const double wShoe = 15.0;
+  static const double wColor = 10.0;
+  static const double wRotation = 10.0;
 
   // Warna netral (mudah dipadukan dengan warna apa pun)
   static const List<String> _neutral = [
@@ -35,7 +53,161 @@ class RecommendationService {
     'other': ['black', 'white', 'gray', 'navy', 'cream'],
   };
 
-  /// Mengecek apakah user punya cukup item di lemari untuk rekomendasi
+  static const List<String> _formalKeywords = [
+    'formal',
+    'jas',
+    'suit',
+    'tuxedo',
+    'tuksedo',
+    'batik',
+    'kebaya',
+    'dasi',
+    'pantofel',
+    'slacks',
+    'stiletto',
+  ];
+
+  static const List<String> _strictFormalOnlyKeywords = [
+    'jas',
+    'suit',
+    'tuxedo',
+    'tuksedo',
+    'dasi',
+    'pantofel',
+    'kebaya',
+    'stiletto',
+    'gaun',
+  ];
+
+  static const List<String> _sportKeywords = [
+    'sport',
+    'olahraga',
+    'training',
+    'running',
+    'lari',
+    'jersey',
+    'jogger',
+    'dryfit',
+    'dry-fit',
+    'gym',
+    'fitness',
+    'badminton',
+    'futsal',
+    'basket',
+    'renang',
+    'tracksuit',
+    'windbreaker',
+  ];
+
+  static const List<String> _semiFormalKeywords = [
+    'semi',
+    'smart casual',
+    'blazer',
+    'cardigan',
+    'chino',
+    'chinos',
+    'oxford',
+    'turtleneck',
+    'loafers',
+    'loafer',
+    'derby',
+    'polo',
+    'linen',
+    'rajut',
+    'knit',
+    'waffle',
+    'blouse',
+    'blus',
+    'vest',
+  ];
+
+  static const List<String> _relaxedOnlyBlockers = [
+    'sandal',
+    'slop',
+    'flip flop',
+    'flip-flop',
+    'piyama',
+    'tidur',
+    'celana pendek',
+    'short',
+    'ripped',
+    'sobek',
+    'singlet',
+    'tank top',
+    'crop top',
+    'pantai',
+    'hawaii',
+  ];
+
+  static const List<String> _strictlyCasualKeywords = [
+    'kaos',
+    't-shirt',
+    'tshirt',
+    'oblong',
+    'hoodie',
+    'sweatshirt',
+    'jeans',
+    'denim',
+    'cargo',
+    'flanel',
+    'santai',
+    'casual',
+    'hangout',
+  ];
+
+  static const List<String> _sneakerKeywords = [
+    'sneaker',
+    'sneakers',
+    'court',
+    'canvas',
+  ];
+
+  bool _containsAny(String text, List<String> keywords) =>
+      keywords.any((k) => text.contains(k));
+
+  bool _hasFormalKeyword(String name) {
+    if (_containsAny(name, _formalKeywords)) return true;
+    if (name.contains('celana') &&
+        (name.contains('bahan') ||
+            name.contains('kain') ||
+            name.contains('wol') ||
+            name.contains('dasar'))) {
+      return true;
+    }
+    if (name.contains('rok') &&
+        (name.contains('bahan') ||
+            name.contains('span') ||
+            name.contains('formal'))) {
+      return true;
+    }
+    return false;
+  }
+
+  bool _hasSportKeyword(String name) => _containsAny(name, _sportKeywords);
+
+  bool _hasSemiFormalKeyword(String name) {
+    if (_containsAny(name, _semiFormalKeywords)) return true;
+    if (name.contains('kemeja') &&
+        !name.contains('pantai') &&
+        !name.contains('hawaii') &&
+        !name.contains('flanel') &&
+        !name.contains('denim') &&
+        !name.contains('jeans')) {
+      return true;
+    }
+    return false;
+  }
+
+  bool _hasRelaxedOnlyBlocker(String name) =>
+      _containsAny(name, _relaxedOnlyBlockers);
+
+  bool _hasStrictlyCasualKeyword(String name) =>
+      _containsAny(name, _strictlyCasualKeywords) ||
+      _hasRelaxedOnlyBlocker(name);
+
+  bool _hasSneakerKeyword(String name) => _containsAny(name, _sneakerKeywords);
+
+  /// Mengecek apakah user punya cukup item di lemari secara umum
   bool canRecommend(List<ClothModel> clothes) {
     final tops = clothes.where((c) => c.category == ClothCategory.top).length;
     final bottoms =
@@ -44,7 +216,6 @@ class RecommendationService {
         clothes.where((c) => c.category == ClothCategory.onepiece).length;
     final shoes = clothes.where((c) => c.category == ClothCategory.shoes).length;
 
-    // (1 top + 1 bottom + 1 shoes) ATAU (1 onepiece + 1 shoes)
     return (tops >= 1 && bottoms >= 1 && shoes >= 1) ||
         (onepieces >= 1 && shoes >= 1);
   }
@@ -66,24 +237,209 @@ class RecommendationService {
     };
   }
 
-  /// Generate rekomendasi outfit otomatis yang mencocokkan gaya antar pakaian secara presisi.
+  /// Menyarankan daftar gaya pakaian otomatis dari nama pakaian saat input/edit.
+  List<ClothStyle> suggestStylesForName(
+    String name, {
+    ClothCategory? category,
+  }) {
+    final lower = name.trim().toLowerCase();
+    if (lower.isEmpty) return const [ClothStyle.casual];
+
+    if (_hasSportKeyword(lower)) {
+      return const [ClothStyle.sport];
+    }
+
+    if (_hasFormalKeyword(lower)) {
+      if (_containsAny(lower, _strictFormalOnlyKeywords)) {
+        return const [ClothStyle.formal];
+      }
+      return const [ClothStyle.formal, ClothStyle.semiFormal];
+    }
+
+    if (_hasRelaxedOnlyBlocker(lower)) {
+      return const [ClothStyle.casual];
+    }
+
+    if (_hasSemiFormalKeyword(lower)) {
+      // Kemeja flanel/pantai sudah terfilter di _hasSemiFormalKeyword;
+      // kemeja biasa, chino, cardigan, polo cocok untuk Semi-formal & Smart Casual.
+      if (lower.contains('blazer') ||
+          lower.contains('loafer') ||
+          lower.contains('derby') ||
+          lower.contains('oxford')) {
+        return const [ClothStyle.semiFormal];
+      }
+      return const [ClothStyle.semiFormal, ClothStyle.casual];
+    }
+
+    return const [ClothStyle.casual];
+  }
+
+  /// Mengembalikan himpunan gaya efektif item untuk pengelompokan yang konsisten.
+  Set<String> getEffectiveStyleValues(ClothModel cloth) =>
+      _getEffectiveStyles(cloth);
+
+  /// Mengecek apakah sebuah pakaian layak dipakai pada acara/agenda tertentu.
+  /// Contoh: pakaian khusus Santai (kaos santai, celana pendek, sandal, jeans)
+  /// tidak boleh dipaksakan masuk ke kategori Formal.
+  bool isSuitableForOccasion(ClothModel cloth, String occasion) {
+    final normOccasion = normalizeOccasion(occasion);
+    final styles = _getEffectiveStyles(cloth);
+    final name = cloth.name.toLowerCase();
+
+    switch (normOccasion) {
+      case 'formal':
+        if (styles.contains('sport') || _hasSportKeyword(name)) return false;
+        if (_hasRelaxedOnlyBlocker(name) || _hasSneakerKeyword(name)) {
+          return false;
+        }
+        if (styles.contains('formal')) return true;
+        // Semi-formal murni (tanpa unsur casual) masih layak untuk formal;
+        // item yang bersifat casual (meski juga semi-formal) tidak dipaksakan ke formal.
+        if (styles.contains('semi-formal') &&
+            !styles.contains('casual') &&
+            !_hasStrictlyCasualKeyword(name)) {
+          return true;
+        }
+        return false;
+
+      case 'organization':
+        if (styles.contains('sport') || _hasSportKeyword(name)) return false;
+        if (_hasRelaxedOnlyBlocker(name)) return false;
+        if (styles.contains('formal') || styles.contains('semi-formal')) {
+          return true;
+        }
+        return false;
+
+      case 'semi-formal':
+        if (styles.contains('sport') || _hasSportKeyword(name)) return false;
+        if (_hasRelaxedOnlyBlocker(name)) return false;
+        if (styles.contains('semi-formal') || styles.contains('formal')) {
+          return true;
+        }
+        // Sneakers minimalis (tanpa unsur lari/olahraga) masih layak smart-casual
+        if (cloth.category == ClothCategory.shoes &&
+            _hasSneakerKeyword(name)) {
+          return true;
+        }
+        return false;
+
+      case 'campus':
+        if (_hasRelaxedOnlyBlocker(name)) return false;
+        if (_containsAny(name, _strictFormalOnlyKeywords)) return false;
+        if (styles.contains('sport') && !styles.contains('casual')) {
+          return false;
+        }
+        return styles.contains('semi-formal') || styles.contains('casual');
+
+      case 'casual':
+        if (_containsAny(name, _strictFormalOnlyKeywords)) return false;
+        // Item yang murni formal (mis. Batik/Celana Bahan tanpa casual/semi-formal) tidak untuk santai
+        if (styles.contains('formal') &&
+            !styles.contains('casual') &&
+            !styles.contains('semi-formal')) {
+          return false;
+        }
+        if (styles.contains('formal') &&
+            _hasFormalKeyword(name) &&
+            !styles.contains('casual')) {
+          return false;
+        }
+        return styles.contains('casual') || styles.contains('semi-formal');
+
+      case 'sport':
+        if (styles.contains('formal') ||
+            styles.contains('semi-formal') ||
+            _hasFormalKeyword(name) ||
+            _hasSemiFormalKeyword(name)) {
+          return false;
+        }
+        if (_hasRelaxedOnlyBlocker(name)) return false;
+        if (styles.contains('sport')) return true;
+        // Sepatu sneakers non-kulit dapat mendampingi olahraga jika tidak ada sepatu running
+        if (cloth.category == ClothCategory.shoes &&
+            _hasSneakerKeyword(name) &&
+            !name.contains('kulit') &&
+            !name.contains('leather') &&
+            !name.contains('slip on')) {
+          return true;
+        }
+        return false;
+
+      default:
+        return true;
+    }
+  }
+
+  /// Daftar label agenda/kategori yang kompatibel dengan pakaian ini.
+  List<String> getSuitableOccasions(ClothModel cloth) {
+    const agendaLabels = [
+      'Santai',
+      'Kuliah',
+      'Semi Formal',
+      'Formal',
+      'Organisasi',
+      'Olahraga',
+    ];
+    return agendaLabels
+        .where((label) => isSuitableForOccasion(cloth, label))
+        .toList();
+  }
+
+  /// Mengembalikan daftar slot utama yang masih kurang untuk acara tertentu.
+  List<String> missingSlotsForOccasion(
+    List<ClothModel> clothes,
+    String occasion,
+  ) {
+    final suitable =
+        clothes.where((c) => isSuitableForOccasion(c, occasion)).toList();
+    final hasTop = suitable.any((c) => c.category == ClothCategory.top);
+    final hasBottom = suitable.any((c) => c.category == ClothCategory.bottom);
+    final hasOnepiece =
+        suitable.any((c) => c.category == ClothCategory.onepiece);
+    final hasShoes = suitable.any((c) => c.category == ClothCategory.shoes);
+
+    if ((hasTop && hasBottom && hasShoes) || (hasOnepiece && hasShoes)) {
+      return const [];
+    }
+
+    return [
+      if (!hasTop && !hasOnepiece) 'Atasan',
+      if (!hasBottom && !hasOnepiece) 'Bawahan',
+      if (!hasShoes) 'Sepatu',
+    ];
+  }
+
+  /// Generate rekomendasi outfit otomatis hanya dari pakaian yang layak untuk agenda terkait.
   OutfitRecommendation recommend({
     required List<ClothModel> clothes,
     required String occasion,
     List<String> excludedIds = const [],
   }) {
-    // Filter pool pakaian yang tidak di-exclude
-    var pool = clothes.where((c) => !excludedIds.contains(c.id)).toList();
-    if (!canRecommend(pool)) {
-      // Jika setelah exclusion tidak cukup, gunakan seluruh pakaian
-      pool = List.from(clothes);
+    final suitableAll =
+        clothes.where((c) => isSuitableForOccasion(c, occasion)).toList();
+
+    if (!canRecommend(suitableAll)) {
+      final missing = missingSlotsForOccasion(clothes, occasion);
+      final missingText =
+          missing.isNotEmpty ? ' (kurang: ${missing.join(', ')})' : '';
+      throw NoSuitableOutfitException(
+        occasion: occasion,
+        missingSlots: missing,
+        message:
+            'Belum ada pakaian yang cocok untuk kategori $occasion$missingText. '
+            'Pakaian dari kategori lain yang tidak sesuai tidak dipaksakan masuk ke kategori $occasion.',
+      );
     }
 
+    var pool =
+        suitableAll.where((c) => !excludedIds.contains(c.id)).toList();
     if (!canRecommend(pool)) {
-      throw Exception('Belum ada pakaian yang cukup untuk rekomendasi.');
+      // Tetap hanya gunakan pakaian yang layak untuk agenda ini (jangan campur kategori yang tidak sesuai)
+      pool = List.from(suitableAll);
     }
 
-    final normOccasion = _normalizeOccasion(occasion);
+    final normOccasion = normalizeOccasion(occasion);
 
     final tops = pool.where((c) => c.category == ClothCategory.top).toList();
     final bottoms =
@@ -99,8 +455,8 @@ class RecommendationService {
 
     _BestOutfitCombination? bestCombination;
 
-    // Skenario 1: Pasangkan Atasan (Top) + Bawahan (Bottom) + Sepatu + Outer
-    if (tops.isNotEmpty && bottoms.isNotEmpty) {
+    // Skenario 1: Pasangkan Atasan + Bawahan + Sepatu (+ Outer/Aksesori yang sesuai)
+    if (tops.isNotEmpty && bottoms.isNotEmpty && shoesList.isNotEmpty) {
       bestCombination = _findBestTopBottomSet(
         tops: tops,
         bottoms: bottoms,
@@ -108,30 +464,35 @@ class RecommendationService {
         outers: outers,
         accessories: accessories,
         normOccasion: normOccasion,
-        rawOccasion: occasion,
       );
     }
 
-    // Skenario 2: Jika tidak ada top/bottom atau One-piece lebih unggul
-    if (bestCombination == null && onepieces.isNotEmpty) {
+    // Skenario 2: One-piece + Sepatu (+ Outer/Aksesori yang sesuai)
+    if (bestCombination == null &&
+        onepieces.isNotEmpty &&
+        shoesList.isNotEmpty) {
       bestCombination = _findBestOnepieceSet(
         onepieces: onepieces,
         shoesList: shoesList,
         outers: outers,
         accessories: accessories,
         normOccasion: normOccasion,
-        rawOccasion: occasion,
       );
     }
 
     if (bestCombination == null) {
-      throw Exception('Tidak dapat menemukan kombinasi pakaian yang sesuai.');
+      final missing = missingSlotsForOccasion(clothes, occasion);
+      throw NoSuitableOutfitException(
+        occasion: occasion,
+        missingSlots: missing,
+        message:
+            'Tidak ditemukan kombinasi pakaian yang sesuai untuk kategori $occasion.',
+      );
     }
 
     final selectedItems = bestCombination.items;
     final itemIds = selectedItems.map((c) => c.id).toList();
 
-    // Hitung detail skor untuk tiap item
     final details = <ClothScoreDetail>[];
     for (final item in selectedItems) {
       final s = _scoreItem(
@@ -147,8 +508,7 @@ class RecommendationService {
       ));
     }
 
-    // Hitung score serasi akhir (persentase 88% - 99%)
-    final finalScore = (bestCombination.totalScore).clamp(86.0, 99.0);
+    final finalScore = bestCombination.totalScore.clamp(86.0, 99.0);
 
     return OutfitRecommendation(
       id: DateTime.now().millisecondsSinceEpoch.toString(),
@@ -160,7 +520,7 @@ class RecommendationService {
   }
 
   // ==================== NORMALISASI AGENDA / OCCASION ====================
-  String _normalizeOccasion(String occasion) {
+  String normalizeOccasion(String occasion) {
     final lower = occasion.toLowerCase();
     if (lower.contains('semi') || lower.contains('smart')) return 'semi-formal';
     if (lower.contains('formal')) return 'formal';
@@ -184,7 +544,6 @@ class RecommendationService {
   }
 
   // ==================== SMART STYLE DETECTION ====================
-  /// Mendeteksi gaya pakaian secara otomatis dari kategori, input style, dan kata kunci nama
   Set<String> _getEffectiveStyles(ClothModel cloth) {
     final styles = <String>{};
     for (final s in cloth.styles) {
@@ -192,79 +551,42 @@ class RecommendationService {
     }
 
     final name = cloth.name.toLowerCase();
-    bool hasFormalKeyword = false;
-    bool hasSportKeyword = false;
+    final hasFormalKw = _hasFormalKeyword(name);
+    final hasSportKw = _hasSportKeyword(name);
+    final hasSemiFormalKw = _hasSemiFormalKeyword(name);
+    final hasStrictlyCasualKw = _hasStrictlyCasualKeyword(name);
+    final hasSneakerKw = _hasSneakerKeyword(name);
 
-    // Kata kunci Formal
-    if (name.contains('formal') ||
-        name.contains('jas') ||
-        name.contains('batik') ||
-        name.contains('pantofel') ||
-        name.contains('tuxedo') ||
-        name.contains('dasi') ||
-        (name.contains('celana') && name.contains('bahan')) ||
-        (name.contains('rok') && name.contains('bahan'))) {
+    if (hasFormalKw) {
       styles.add('formal');
-      hasFormalKeyword = true;
-    }
-
-    // Kata kunci Sport / Olahraga
-    if (name.contains('sport') ||
-        name.contains('olahraga') ||
-        name.contains('training') ||
-        name.contains('running') ||
-        name.contains('jersey') ||
-        name.contains('jogger') ||
-        name.contains('dryfit') ||
-        name.contains('dry-fit') ||
-        name.contains('gym') ||
-        name.contains('badminton') ||
-        name.contains('futsal')) {
-      styles.add('sport');
-      hasSportKeyword = true;
-    }
-
-    // Kata kunci Semi-Formal
-    if (name.contains('semi') ||
-        name.contains('blazer') ||
-        name.contains('cardigan') ||
-        name.contains('chino') ||
-        name.contains('oxford') ||
-        name.contains('turtleneck') ||
-        name.contains('kemeja') ||
-        name.contains('loafers') ||
-        name.contains('loafer') ||
-        name.contains('polo') ||
-        name.contains('linen') ||
-        name.contains('rajut') ||
-        name.contains('waffle')) {
-      styles.add('semi-formal');
-    }
-
-    // Jika item terdeteksi kuat formal atau sport, bersihkan gaya default yang bertentangan
-    if (hasFormalKeyword) {
-      styles.remove('casual');
+      if (!_containsAny(name, _strictFormalOnlyKeywords)) {
+        styles.add('semi-formal');
+      }
+      if (!name.contains('santai') && !name.contains('casual')) {
+        styles.remove('casual');
+      }
       styles.remove('sport');
-    } else if (hasSportKeyword) {
+    } else if (hasSportKw) {
+      styles.add('sport');
       styles.remove('formal');
       styles.remove('semi-formal');
       if (!name.contains('santai') && !name.contains('casual')) {
         styles.remove('casual');
       }
-    }
-
-    // Kata kunci Casual / Santai
-    if (name.contains('kaos') ||
-        name.contains('t-shirt') ||
-        name.contains('tshirt') ||
-        name.contains('jeans') ||
-        name.contains('denim') ||
-        name.contains('hoodie') ||
-        name.contains('sneakers') ||
-        name.contains('sandal') ||
-        name.contains('santai') ||
-        name.contains('casual')) {
-      styles.add('casual');
+    } else {
+      if (hasSemiFormalKw && !hasStrictlyCasualKw) {
+        styles.add('semi-formal');
+      }
+      if (hasStrictlyCasualKw || hasSneakerKw) {
+        styles.add('casual');
+        if (hasStrictlyCasualKw &&
+            !cloth.styles.contains(ClothStyle.semiFormal)) {
+          styles.remove('semi-formal');
+        }
+        if (!cloth.styles.contains(ClothStyle.formal)) {
+          styles.remove('formal');
+        }
+      }
     }
 
     if (styles.isEmpty) {
@@ -279,37 +601,36 @@ class RecommendationService {
     switch (normOccasion) {
       case 'semi-formal':
         if (clothStyles.contains('semi-formal')) return 1.0;
+        if (clothStyles.contains('formal')) return 0.70;
         if (clothStyles.contains('casual')) return 0.55;
-        if (clothStyles.contains('formal')) return 0.50;
-        return 0.05; // Hindari sport untuk semi-formal
+        return 0.05;
 
       case 'formal':
         if (clothStyles.contains('formal')) return 1.0;
-        if (clothStyles.contains('semi-formal')) return 0.65;
-        if (clothStyles.contains('casual')) return 0.10;
-        return 0.0; // Hindari sport / casual untuk formal
+        if (clothStyles.contains('semi-formal') &&
+            !clothStyles.contains('casual')) {
+          return 0.65;
+        }
+        return 0.0;
 
       case 'sport':
         if (clothStyles.contains('sport')) return 1.0;
         if (clothStyles.contains('casual')) return 0.40;
-        return 0.0; // Hindari formal / semi-formal untuk sport
+        return 0.0;
 
       case 'casual':
         if (clothStyles.contains('casual')) return 1.0;
         if (clothStyles.contains('semi-formal')) return 0.75;
-        if (clothStyles.contains('sport')) return 0.60;
         return 0.10;
 
       case 'campus':
         if (clothStyles.contains('semi-formal')) return 1.0;
         if (clothStyles.contains('casual')) return 0.90;
-        if (clothStyles.contains('formal')) return 0.60;
         return 0.15;
 
       case 'organization':
         if (clothStyles.contains('formal')) return 1.0;
         if (clothStyles.contains('semi-formal')) return 0.95;
-        if (clothStyles.contains('casual')) return 0.35;
         return 0.0;
 
       default:
@@ -318,30 +639,25 @@ class RecommendationService {
   }
 
   // ==================== KONSISTENSI GAYA ANTAR PASANGAN ====================
-  /// Menghitung keserasian gaya antar 2 pakaian (misal: Atasan Semi-Formal HARUS dipasangkan dengan Bawahan Semi-Formal)
   double _pairStyleConsistency(
     Set<String> stylesA,
     Set<String> stylesB,
     String normOccasion,
   ) {
     if (normOccasion == 'semi-formal') {
-      // Jika keduanya sama-sama Semi-Formal -> Nilai sempurna!
       if (stylesA.contains('semi-formal') && stylesB.contains('semi-formal')) {
         return 1.0;
       }
-      // Tabrakan gaya: salah satu pakaian olahraga
       if (stylesA.contains('sport') || stylesB.contains('sport')) {
         return 0.05;
       }
-      // Semi-formal dipadu dengan smart casual yang rapi
       if (stylesA.contains('semi-formal') || stylesB.contains('semi-formal')) {
-        return 0.75;
+        return 0.80;
       }
-      return 0.40;
+      return 0.50;
     }
 
     if (normOccasion == 'formal') {
-      // Formal dipasangkan dengan Formal -> Nilai sempurna!
       if (stylesA.contains('formal') && stylesB.contains('formal')) {
         return 1.0;
       }
@@ -352,39 +668,29 @@ class RecommendationService {
           (stylesA.contains('semi-formal') && stylesB.contains('formal'))) {
         return 0.85;
       }
-      return 0.15;
-    }
-
-    if (normOccasion == 'sport') {
-      // Sport dipasangkan dengan Sport -> Nilai sempurna!
-      if (stylesA.contains('sport') && stylesB.contains('sport')) {
-        return 1.0;
-      }
-      if (stylesA.contains('formal') || stylesB.contains('formal')) {
-        return 0.0;
-      }
-      if (stylesA.contains('sport') || stylesB.contains('sport')) {
-        return 0.60;
+      if (stylesA.contains('semi-formal') && stylesB.contains('semi-formal')) {
+        return 0.75;
       }
       return 0.10;
     }
 
+    if (normOccasion == 'sport') {
+      if (stylesA.contains('sport') && stylesB.contains('sport')) {
+        return 1.0;
+      }
+      return 0.0;
+    }
+
     if (normOccasion == 'casual') {
-      // Casual dipasangkan dengan Casual -> Nilai sempurna!
       if (stylesA.contains('casual') && stylesB.contains('casual')) {
         return 1.0;
       }
-      if ((stylesA.contains('formal') && stylesB.contains('sport')) ||
-          (stylesA.contains('sport') && stylesB.contains('formal'))) {
-        return 0.10;
-      }
       if (stylesA.contains('semi-formal') || stylesB.contains('semi-formal')) {
-        return 0.80; // Smart casual
+        return 0.80;
       }
       return 0.70;
     }
 
-    // Default: jika ada irisan gaya yang sama
     final common = stylesA.intersection(stylesB);
     if (common.isNotEmpty) return 1.0;
     return 0.65;
@@ -404,28 +710,25 @@ class RecommendationService {
           styles.contains('semi-formal')) {
         return 1.0;
       }
-      if (name.contains('sneaker') || styles.contains('casual')) {
-        return 0.80; // Clean minimalist sneakers cocok untuk smart casual
+      if (_hasSneakerKeyword(name) || styles.contains('casual')) {
+        return 0.80;
       }
-      if (name.contains('running') ||
-          name.contains('sport') ||
-          styles.contains('sport')) {
-        return 0.10; // Hindari sepatu lari untuk semi-formal
-      }
-      return 0.70;
+      return 0.10;
     }
 
     if (normOccasion == 'formal') {
       if (name.contains('pantofel') ||
           name.contains('oxford') ||
           name.contains('derby') ||
+          name.contains('stiletto') ||
           styles.contains('formal')) {
         return 1.0;
       }
-      if (name.contains('loafer') || styles.contains('semi-formal')) {
+      if (name.contains('loafer') ||
+          (styles.contains('semi-formal') && !styles.contains('casual'))) {
         return 0.85;
       }
-      return 0.10;
+      return 0.0;
     }
 
     if (normOccasion == 'sport') {
@@ -435,21 +738,20 @@ class RecommendationService {
           styles.contains('sport')) {
         return 1.0;
       }
-      if (name.contains('sneaker')) {
+      if (_hasSneakerKeyword(name)) {
         return 0.80;
       }
-      return 0.05;
+      return 0.0;
     }
 
     if (normOccasion == 'casual') {
-      if (name.contains('sneaker') ||
-          name.contains('canvas') ||
+      if (_hasSneakerKeyword(name) ||
           name.contains('slip on') ||
           name.contains('sandal') ||
           styles.contains('casual')) {
         return 1.0;
       }
-      return 0.70;
+      return 0.75;
     }
 
     return 0.80;
@@ -469,8 +771,8 @@ class RecommendationService {
           styles.contains('semi-formal')) {
         return 1.0;
       }
-      if (styles.contains('casual')) return 0.60;
-      return 0.10;
+      if (styles.contains('formal')) return 0.80;
+      return 0.20;
     }
 
     if (normOccasion == 'formal') {
@@ -479,7 +781,10 @@ class RecommendationService {
           styles.contains('formal')) {
         return 1.0;
       }
-      return 0.10;
+      if (styles.contains('semi-formal') && !styles.contains('casual')) {
+        return 0.75;
+      }
+      return 0.0;
     }
 
     if (normOccasion == 'sport') {
@@ -488,6 +793,14 @@ class RecommendationService {
           name.contains('sport') ||
           styles.contains('sport')) {
         return 1.0;
+      }
+      return 0.0;
+    }
+
+    if (normOccasion == 'casual') {
+      if (_containsAny(name, _strictFormalOnlyKeywords)) return 0.0;
+      if (styles.contains('casual') || styles.contains('semi-formal')) {
+        return 0.90;
       }
       return 0.20;
     }
@@ -509,13 +822,13 @@ class RecommendationService {
         comparisons++;
 
         if (c1 == c2) {
-          matchTotal += 0.85; // Tone-sur-tone / serasi
+          matchTotal += 0.85;
         } else if (_neutral.contains(c1) || _neutral.contains(c2)) {
-          matchTotal += 1.0; // Warna netral sangat mudah dipadukan
+          matchTotal += 1.0;
         } else if (_analogous[c1]?.contains(c2) ?? false) {
-          matchTotal += 0.95; // Warna analogus harmonis
+          matchTotal += 0.95;
         } else {
-          matchTotal += 0.35; // Kurang serasi
+          matchTotal += 0.35;
         }
       }
     }
@@ -525,7 +838,7 @@ class RecommendationService {
 
   // ==================== ROTASI PEMAKAIAN ====================
   double _rotationScore(ClothModel cloth) {
-    if (cloth.lastWornAt == null) return 1.0; // Belum pernah dipakai
+    if (cloth.lastWornAt == null) return 1.0;
 
     final days = DateTime.now().difference(cloth.lastWornAt!).inDays;
     if (days <= 1) return 0.20;
@@ -535,15 +848,56 @@ class RecommendationService {
     return 1.0;
   }
 
+  ClothModel? _pickBestOuter({
+    required List<ClothModel> outers,
+    required List<String> baseColors,
+    required String normOccasion,
+  }) {
+    ClothModel? bestOuter;
+    double bestScore = 0;
+    for (final outer in outers) {
+      final oOcc = _outerScoreForOccasion(outer, normOccasion);
+      if (oOcc >= 0.70) {
+        final oColor = _colorHarmonyScore([...baseColors, outer.color]);
+        final oScore = (oOcc * 0.7) + (oColor * 0.3);
+        if (oScore > bestScore) {
+          bestScore = oScore;
+          bestOuter = outer;
+        }
+      }
+    }
+    return bestOuter;
+  }
+
+  ClothModel? _pickBestAccessory({
+    required List<ClothModel> accessories,
+    required List<String> baseColors,
+    required String normOccasion,
+  }) {
+    ClothModel? bestAcc;
+    double bestScore = 0;
+    for (final acc in accessories) {
+      final aff = _occasionAffinity(_getEffectiveStyles(acc), normOccasion);
+      if (aff >= 0.50) {
+        final cHarm = _colorHarmonyScore([...baseColors, acc.color]);
+        final score = (aff * 0.7) + (cHarm * 0.3);
+        if (score > bestScore) {
+          bestScore = score;
+          bestAcc = acc;
+        }
+      }
+    }
+    return bestAcc;
+  }
+
   // ==================== PENCARIAN KOMBINASI TERBAIK ====================
-  _BestOutfitCombination _findBestTopBottomSet({
+  _BestOutfitCombination? _findBestTopBottomSet({
     required List<ClothModel> tops,
     required List<ClothModel> bottoms,
     required List<ClothModel> shoesList,
     required List<ClothModel> outers,
     required List<ClothModel> accessories,
     required String normOccasion,
-    required String rawOccasion,
   }) {
     ClothModel? bestTop;
     ClothModel? bestBottom;
@@ -552,7 +906,6 @@ class RecommendationService {
     ClothModel? bestAccessory;
     double maxScore = -1;
 
-    // Evaluasi setiap pasangan Atasan dan Bawahan
     for (final top in tops) {
       final topStyles = _getEffectiveStyles(top);
       final affTop = _occasionAffinity(topStyles, normOccasion);
@@ -561,18 +914,12 @@ class RecommendationService {
         final bottomStyles = _getEffectiveStyles(bottom);
         final affBottom = _occasionAffinity(bottomStyles, normOccasion);
 
-        // KONSISTENSI GAYA ANTARA ATASAN DAN BAWAHAN (Kunci utama!)
         final pairConsistency =
             _pairStyleConsistency(topStyles, bottomStyles, normOccasion);
-
-        // Harmoni warna Atasan dan Bawahan
         final colorPair = _colorHarmonyScore([top.color, bottom.color]);
-
-        // Rotasi
         final rotTopBottom =
             (_rotationScore(top) + _rotationScore(bottom)) / 2;
 
-        // Cari sepatu terbaik yang serasi dengan pasangan pakaian ini
         ClothModel? candidateShoe;
         double bestShoeScore = 0;
         for (final shoe in shoesList) {
@@ -587,29 +934,19 @@ class RecommendationService {
           }
         }
 
-        // Cari outer opsional yang serasi (hanya jika ada dan cocok)
-        ClothModel? candidateOuter;
-        double outerContribution = 0;
-        for (final outer in outers) {
-          final oOcc = _outerScoreForOccasion(outer, normOccasion);
-          if (oOcc >= 0.70) {
-            final oColor = _colorHarmonyScore(
-                [top.color, bottom.color, outer.color]);
-            final oScore = (oOcc * 0.7) + (oColor * 0.3);
-            if (oScore > outerContribution) {
-              outerContribution = oScore;
-              candidateOuter = outer;
-            }
-          }
-        }
+        if (candidateShoe == null) continue;
 
-        // Cari aksesori opsional jika ada
-        ClothModel? candidateAcc;
-        if (accessories.isNotEmpty) {
-          candidateAcc = accessories.first;
-        }
+        final candidateOuter = _pickBestOuter(
+          outers: outers,
+          baseColors: [top.color, bottom.color],
+          normOccasion: normOccasion,
+        );
+        final candidateAcc = _pickBestAccessory(
+          accessories: accessories,
+          baseColors: [top.color, bottom.color],
+          normOccasion: normOccasion,
+        );
 
-        // Hitung total skor gabungan dari set pakaian ini
         final occasionSubtotal = ((affTop + affBottom) / 2) * wOccasion;
         final styleSubtotal = pairConsistency * wPairStyle;
         final shoeSubtotal = bestShoeScore * wShoe;
@@ -633,27 +970,28 @@ class RecommendationService {
       }
     }
 
-    final selected = <ClothModel>[
-      if (bestTop != null) bestTop,
-      if (bestBottom != null) bestBottom,
-      if (bestShoe != null) bestShoe,
-      if (bestOuter != null) bestOuter,
-      if (bestAccessory != null) bestAccessory,
-    ];
+    if (bestTop == null || bestBottom == null || bestShoe == null) {
+      return null;
+    }
 
     return _BestOutfitCombination(
-      items: selected,
+      items: [
+        bestTop,
+        bestBottom,
+        bestShoe,
+        if (bestOuter != null) bestOuter,
+        if (bestAccessory != null) bestAccessory,
+      ],
       totalScore: maxScore,
     );
   }
 
-  _BestOutfitCombination _findBestOnepieceSet({
+  _BestOutfitCombination? _findBestOnepieceSet({
     required List<ClothModel> onepieces,
     required List<ClothModel> shoesList,
     required List<ClothModel> outers,
     required List<ClothModel> accessories,
     required String normOccasion,
-    required String rawOccasion,
   }) {
     ClothModel? bestOnepiece;
     ClothModel? bestShoe;
@@ -678,17 +1016,18 @@ class RecommendationService {
         }
       }
 
-      ClothModel? candidateOuter;
-      for (final outer in outers) {
-        final oOcc = _outerScoreForOccasion(outer, normOccasion);
-        if (oOcc >= 0.70) {
-          candidateOuter = outer;
-          break;
-        }
-      }
+      if (candidateShoe == null) continue;
 
-      ClothModel? candidateAcc;
-      if (accessories.isNotEmpty) candidateAcc = accessories.first;
+      final candidateOuter = _pickBestOuter(
+        outers: outers,
+        baseColors: [op.color],
+        normOccasion: normOccasion,
+      );
+      final candidateAcc = _pickBestAccessory(
+        accessories: accessories,
+        baseColors: [op.color],
+        normOccasion: normOccasion,
+      );
 
       final totalSetScore = (affOp * (wOccasion + wPairStyle * 0.6)) +
           (bestShoeScore * wShoe) +
@@ -703,15 +1042,17 @@ class RecommendationService {
       }
     }
 
-    final selected = <ClothModel>[
-      if (bestOnepiece != null) bestOnepiece,
-      if (bestShoe != null) bestShoe,
-      if (bestOuter != null) bestOuter,
-      if (bestAccessory != null) bestAccessory,
-    ];
+    if (bestOnepiece == null || bestShoe == null) {
+      return null;
+    }
 
     return _BestOutfitCombination(
-      items: selected,
+      items: [
+        bestOnepiece,
+        bestShoe,
+        if (bestOuter != null) bestOuter,
+        if (bestAccessory != null) bestAccessory,
+      ],
       totalScore: maxScore,
     );
   }

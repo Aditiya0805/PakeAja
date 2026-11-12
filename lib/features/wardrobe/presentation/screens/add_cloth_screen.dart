@@ -8,6 +8,7 @@ import 'package:go_router/go_router.dart';
 import 'package:pakeaja/core/constants/app_constants.dart';
 import 'package:pakeaja/core/providers/service_providers.dart';
 import 'package:pakeaja/core/theme/app_theme.dart';
+import 'package:pakeaja/core/widgets/cloth_style_selector.dart';
 import 'package:pakeaja/core/widgets/custom_button.dart';
 import 'package:pakeaja/data/models/cloth_model.dart';
 import 'package:pakeaja/features/auth/providers/auth_provider.dart' show authStateProvider;
@@ -33,7 +34,8 @@ class _AddClothScreenState extends ConsumerState<AddClothScreen> {
 
   ClothCategory _category = ClothCategory.top;
   String _color = 'black';
-  ClothStyle _style = ClothStyle.casual;
+  List<ClothStyle> _selectedStyles = [ClothStyle.casual];
+  bool _userEditedStyles = false;
   ClothWeather _weather = ClothWeather.cool;
 
   @override
@@ -94,7 +96,7 @@ class _AddClothScreenState extends ConsumerState<AddClothScreen> {
       name: _nameController.text.trim(),
       category: _category,
       color: _color,
-      styles: [_style],
+      styles: _selectedStyles,
       weather: _weather,
       imageUrl: '',
       createdAt: DateTime.now(),
@@ -155,6 +157,15 @@ class _AddClothScreenState extends ConsumerState<AddClothScreen> {
                 // Nama
                 TextFormField(
                   controller: _nameController,
+                  onChanged: (value) {
+                    setState(() {
+                      if (!_userEditedStyles) {
+                        _selectedStyles = ref
+                            .read(recommendationServiceProvider)
+                            .suggestStylesForName(value, category: _category);
+                      }
+                    });
+                  },
                   validator: (v) {
                     if (v == null || v.trim().isEmpty) {
                       return 'Nama pakaian wajib diisi';
@@ -204,18 +215,14 @@ class _AddClothScreenState extends ConsumerState<AddClothScreen> {
                 const SizedBox(height: 16),
 
                 // Gaya
-                const Text('Gaya',
-                    style: TextStyle(fontWeight: FontWeight.w600)),
-                const SizedBox(height: 8),
-                Wrap(
-                  spacing: 8,
-                  children: ClothStyle.values.map((s) {
-                    return ChoiceChip(
-                      label: Text(s.label),
-                      selected: _style == s,
-                      onSelected: (_) => setState(() => _style = s),
-                    );
-                  }).toList(),
+                ClothStyleSelector(
+                  selectedStyles: _selectedStyles,
+                  clothName: _nameController.text,
+                  category: _category,
+                  onChanged: (next) => setState(() {
+                    _userEditedStyles = true;
+                    _selectedStyles = next;
+                  }),
                 ),
                 const SizedBox(height: 16),
 
