@@ -54,9 +54,6 @@ class RecommendationService {
   };
 
   static const List<String> _formalKeywords = [
-    'formal',
-    'jas',
-    'suit',
     'tuxedo',
     'tuksedo',
     'batik',
@@ -64,12 +61,12 @@ class RecommendationService {
     'dasi',
     'pantofel',
     'slacks',
+    'slack',
     'stiletto',
+    'dress shirt',
   ];
 
   static const List<String> _strictFormalOnlyKeywords = [
-    'jas',
-    'suit',
     'tuxedo',
     'tuksedo',
     'dasi',
@@ -81,10 +78,11 @@ class RecommendationService {
 
   static const List<String> _sportKeywords = [
     'sport',
+    'sporty',
     'olahraga',
     'training',
+    'trening',
     'running',
-    'lari',
     'jersey',
     'jogger',
     'dryfit',
@@ -93,17 +91,53 @@ class RecommendationService {
     'fitness',
     'badminton',
     'futsal',
+    'sepak bola',
+    'sepakbola',
     'basket',
+    'voli',
+    'tenis',
+    'tennis',
+    'padel',
+    'golf',
     'renang',
+    'yoga',
+    'pilates',
+    'senam',
+    'zumba',
+    'sepeda',
+    'gowes',
+    'cycling',
+    'hiking',
+    'trekking',
+    'outdoor',
     'tracksuit',
     'windbreaker',
+    'activewear',
+    'athletic',
+    'sweatpants',
+    'sweatpant',
+    'legging',
+    'leggings',
+    'manset',
+    'baselayer',
+    'base layer',
+    'compression',
+    'parasut',
+    'baju or',
+    'kaos or',
+    'kaus or',
+    'celana or',
+    'setelan olahraga',
+    'stelan olahraga',
   ];
 
   static const List<String> _semiFormalKeywords = [
     'semi',
     'smart casual',
+    'smart-casual',
     'blazer',
     'cardigan',
+    'kardigan',
     'chino',
     'chinos',
     'oxford',
@@ -111,36 +145,52 @@ class RecommendationService {
     'loafers',
     'loafer',
     'derby',
-    'polo',
     'linen',
     'rajut',
     'knit',
     'waffle',
     'blouse',
     'blus',
-    'vest',
+    'tunik',
+    'tunic',
+    'flat shoes',
+    'heels',
+    'wedges',
+    'korsa',
+    'almamater',
+    'almet',
+    'organisasi',
+    'koko',
   ];
 
-  static const List<String> _relaxedOnlyBlockers = [
+  /// Item santai yang sama sekali tidak pantas untuk formal, semi-formal, kuliah, organisasi, maupun olahraga.
+  static const List<String> _nonSportRelaxedBlockers = [
     'sandal',
     'slop',
     'flip flop',
     'flip-flop',
     'piyama',
     'tidur',
-    'celana pendek',
-    'short',
     'ripped',
     'sobek',
-    'singlet',
-    'tank top',
-    'crop top',
     'pantai',
     'hawaii',
   ];
 
+  /// Item santai yang khusus tidak pantas untuk formal/semi-formal/kuliah/organisasi
+  /// (termasuk celana pendek / singlet / tank top).
+  static const List<String> _relaxedOnlyBlockers = [
+    ..._nonSportRelaxedBlockers,
+    'celana pendek',
+    'singlet',
+    'tank top',
+    'crop top',
+    'kolor',
+  ];
+
   static const List<String> _strictlyCasualKeywords = [
     'kaos',
+    'kaus',
     't-shirt',
     'tshirt',
     'oblong',
@@ -160,33 +210,61 @@ class RecommendationService {
     'sneakers',
     'court',
     'canvas',
+    'kanvas',
   ];
 
   bool _containsAny(String text, List<String> keywords) =>
       keywords.any((k) => text.contains(k));
 
+  bool _containsWord(String text, String word) =>
+      RegExp('(^|[^a-z0-9])${RegExp.escape(word)}([^a-z0-9]|\$)')
+          .hasMatch(text);
+
+  bool _hasStrictFormalOnlyKeyword(String name) =>
+      _containsAny(name, _strictFormalOnlyKeywords) ||
+      _containsWord(name, 'jas') ||
+      _containsWord(name, 'suit');
+
   bool _hasFormalKeyword(String name) {
+    if (_hasStrictFormalOnlyKeyword(name)) return true;
     if (_containsAny(name, _formalKeywords)) return true;
+    if (_containsWord(name, 'formal') &&
+        !name.contains('semi-formal') &&
+        !name.contains('semi formal')) {
+      return true;
+    }
     if (name.contains('celana') &&
         (name.contains('bahan') ||
             name.contains('kain') ||
             name.contains('wol') ||
-            name.contains('dasar'))) {
+            name.contains('dasar') ||
+            name.contains('kerja'))) {
       return true;
     }
     if (name.contains('rok') &&
         (name.contains('bahan') ||
             name.contains('span') ||
+            name.contains('kerja') ||
             name.contains('formal'))) {
       return true;
     }
     return false;
   }
 
-  bool _hasSportKeyword(String name) => _containsAny(name, _sportKeywords);
+  bool _hasSportKeyword(String name) =>
+      _containsAny(name, _sportKeywords) ||
+      _containsWord(name, 'active') ||
+      _containsWord(name, 'lari') ||
+      _containsWord(name, 'bola');
 
   bool _hasSemiFormalKeyword(String name) {
     if (_containsAny(name, _semiFormalKeywords)) return true;
+    if (_containsWord(name, 'polo') ||
+        _containsWord(name, 'vest') ||
+        _containsWord(name, 'pdh') ||
+        _containsWord(name, 'pdl')) {
+      return true;
+    }
     if (name.contains('kemeja') &&
         !name.contains('pantai') &&
         !name.contains('hawaii') &&
@@ -198,14 +276,65 @@ class RecommendationService {
     return false;
   }
 
+  bool _hasShortPantsWord(String name) =>
+      (_containsWord(name, 'short') && !name.contains('short sleeve')) ||
+      _containsWord(name, 'shorts');
+
   bool _hasRelaxedOnlyBlocker(String name) =>
-      _containsAny(name, _relaxedOnlyBlockers);
+      _containsAny(name, _relaxedOnlyBlockers) || _hasShortPantsWord(name);
 
   bool _hasStrictlyCasualKeyword(String name) =>
       _containsAny(name, _strictlyCasualKeywords) ||
       _hasRelaxedOnlyBlocker(name);
 
   bool _hasSneakerKeyword(String name) => _containsAny(name, _sneakerKeywords);
+
+  bool _isBreathableSportTop(String name) {
+    if (_containsAny(name, _nonSportRelaxedBlockers)) return false;
+    if (name.contains('santai') ||
+        name.contains('hangout') ||
+        name.contains('flanel') ||
+        name.contains('denim') ||
+        name.contains('jeans') ||
+        name.contains('kemeja') ||
+        name.contains('blazer') ||
+        name.contains('batik') ||
+        name.contains('blouse') ||
+        name.contains('blus')) {
+      return false;
+    }
+    return name.contains('kaos') ||
+        name.contains('kaus') ||
+        name.contains('t-shirt') ||
+        name.contains('tshirt') ||
+        name.contains('oblong') ||
+        name.contains('singlet') ||
+        name.contains('tank top') ||
+        name.contains('crop top');
+  }
+
+  bool _isNeatShirtForFormal(ClothModel cloth, String name) {
+    if (cloth.category != ClothCategory.top &&
+        cloth.category != ClothCategory.onepiece) {
+      return false;
+    }
+    if (name.contains('pantai') ||
+        name.contains('hawaii') ||
+        name.contains('flanel') ||
+        name.contains('denim') ||
+        name.contains('jeans') ||
+        name.contains('santai') ||
+        name.contains('hangout') ||
+        _containsWord(name, 'pdh') ||
+        _containsWord(name, 'pdl') ||
+        name.contains('korsa')) {
+      return false;
+    }
+    return name.contains('kemeja') ||
+        name.contains('blouse') ||
+        name.contains('blus') ||
+        name.contains('tunik');
+  }
 
   /// Mengecek apakah user punya cukup item di lemari secara umum
   bool canRecommend(List<ClothModel> clothes) {
@@ -243,14 +372,19 @@ class RecommendationService {
     ClothCategory? category,
   }) {
     final lower = name.trim().toLowerCase();
-    if (lower.isEmpty) return const [ClothStyle.casual];
+    if (lower.isEmpty) {
+      if (category == ClothCategory.outer) {
+        return const [ClothStyle.casual];
+      }
+      return const [ClothStyle.casual];
+    }
 
     if (_hasSportKeyword(lower)) {
       return const [ClothStyle.sport];
     }
 
     if (_hasFormalKeyword(lower)) {
-      if (_containsAny(lower, _strictFormalOnlyKeywords)) {
+      if (_hasStrictFormalOnlyKeyword(lower)) {
         return const [ClothStyle.formal];
       }
       return const [ClothStyle.formal, ClothStyle.semiFormal];
@@ -294,11 +428,10 @@ class RecommendationService {
           return false;
         }
         if (styles.contains('formal')) return true;
-        // Semi-formal murni (tanpa unsur casual) masih layak untuk formal;
-        // item yang bersifat casual (meski juga semi-formal) tidak dipaksakan ke formal.
+        // Semi-formal murni (tanpa unsur casual) atau kemeja/blus polos tetap layak untuk formal
         if (styles.contains('semi-formal') &&
-            !styles.contains('casual') &&
-            !_hasStrictlyCasualKeyword(name)) {
+            ((!styles.contains('casual') && !_hasStrictlyCasualKeyword(name)) ||
+                _isNeatShirtForFormal(cloth, name))) {
           return true;
         }
         return false;
@@ -307,6 +440,15 @@ class RecommendationService {
         if (styles.contains('sport') || _hasSportKeyword(name)) return false;
         if (_hasRelaxedOnlyBlocker(name)) return false;
         if (styles.contains('formal') || styles.contains('semi-formal')) {
+          return true;
+        }
+        // Forum organisasi kampus/komunitas juga dapat memakai jeans polos rapi atau sneakers bersih
+        if (cloth.category == ClothCategory.bottom &&
+            (name.contains('jeans') || name.contains('denim'))) {
+          return true;
+        }
+        if (cloth.category == ClothCategory.shoes &&
+            _hasSneakerKeyword(name)) {
           return true;
         }
         return false;
@@ -326,14 +468,14 @@ class RecommendationService {
 
       case 'campus':
         if (_hasRelaxedOnlyBlocker(name)) return false;
-        if (_containsAny(name, _strictFormalOnlyKeywords)) return false;
+        if (_hasStrictFormalOnlyKeyword(name)) return false;
         if (styles.contains('sport') && !styles.contains('casual')) {
           return false;
         }
         return styles.contains('semi-formal') || styles.contains('casual');
 
       case 'casual':
-        if (_containsAny(name, _strictFormalOnlyKeywords)) return false;
+        if (_hasStrictFormalOnlyKeyword(name)) return false;
         // Item yang murni formal (mis. Batik/Celana Bahan tanpa casual/semi-formal) tidak untuk santai
         if (styles.contains('formal') &&
             !styles.contains('casual') &&
@@ -354,14 +496,44 @@ class RecommendationService {
             _hasSemiFormalKeyword(name)) {
           return false;
         }
-        if (_hasRelaxedOnlyBlocker(name)) return false;
-        if (styles.contains('sport')) return true;
-        // Sepatu sneakers non-kulit dapat mendampingi olahraga jika tidak ada sepatu running
+        // Item santai non-olahraga (sandal, piyama, pantai, sobek, jeans, chino) tetap ditolak
+        if (_containsAny(name, _nonSportRelaxedBlockers)) return false;
+        if (name.contains('jeans') ||
+            name.contains('denim') ||
+            name.contains('chino') ||
+            name.contains('cargo') ||
+            name.contains('flanel') ||
+            name.contains('santai') ||
+            name.contains('hangout') ||
+            name.contains('kulit') ||
+            name.contains('leather') ||
+            name.contains('slip on')) {
+          return false;
+        }
+        // Item Sport atau bertema olahraga (termasuk celana pendek olahraga, singlet lari, legging)
+        if (styles.contains('sport') || _hasSportKeyword(name)) return true;
+        // Atasan kaos/singlet breathable (bukan kemeja/santai/pantai) dapat dipakai olahraga
+        if (cloth.category == ClothCategory.top && _isBreathableSportTop(name)) {
+          return true;
+        }
+        // Celana pendek / legging polos (tanpa unsur pantai/jeans/tidur/santai) layak untuk olahraga
+        if (cloth.category == ClothCategory.bottom &&
+            (name.contains('celana pendek') ||
+                _hasShortPantsWord(name) ||
+                name.contains('legging'))) {
+          return true;
+        }
+        // Sepatu sneakers / sepatu non-formal non-kulit dapat mendampingi olahraga
         if (cloth.category == ClothCategory.shoes &&
-            _hasSneakerKeyword(name) &&
-            !name.contains('kulit') &&
-            !name.contains('leather') &&
-            !name.contains('slip on')) {
+            !name.contains('pantofel') &&
+            !name.contains('oxford') &&
+            !name.contains('derby') &&
+            !name.contains('loafer') &&
+            !name.contains('heels') &&
+            !name.contains('stiletto') &&
+            !name.contains('wedges') &&
+            !name.contains('flat shoes') &&
+            !name.contains('boots')) {
           return true;
         }
         return false;
@@ -559,7 +731,7 @@ class RecommendationService {
 
     if (hasFormalKw) {
       styles.add('formal');
-      if (!_containsAny(name, _strictFormalOnlyKeywords)) {
+      if (!_hasStrictFormalOnlyKeyword(name)) {
         styles.add('semi-formal');
       }
       if (!name.contains('santai') && !name.contains('casual')) {
@@ -607,10 +779,7 @@ class RecommendationService {
 
       case 'formal':
         if (clothStyles.contains('formal')) return 1.0;
-        if (clothStyles.contains('semi-formal') &&
-            !clothStyles.contains('casual')) {
-          return 0.65;
-        }
+        if (clothStyles.contains('semi-formal')) return 0.65;
         return 0.0;
 
       case 'sport':
@@ -631,6 +800,7 @@ class RecommendationService {
       case 'organization':
         if (clothStyles.contains('formal')) return 1.0;
         if (clothStyles.contains('semi-formal')) return 0.95;
+        if (clothStyles.contains('casual')) return 0.45;
         return 0.0;
 
       default:
@@ -678,7 +848,10 @@ class RecommendationService {
       if (stylesA.contains('sport') && stylesB.contains('sport')) {
         return 1.0;
       }
-      return 0.0;
+      if (stylesA.contains('sport') || stylesB.contains('sport')) {
+        return 0.70;
+      }
+      return 0.40;
     }
 
     if (normOccasion == 'casual') {
@@ -735,11 +908,15 @@ class RecommendationService {
       if (name.contains('running') ||
           name.contains('sport') ||
           name.contains('training') ||
-          styles.contains('sport')) {
+          styles.contains('sport') ||
+          _hasSportKeyword(name)) {
         return 1.0;
       }
       if (_hasSneakerKeyword(name)) {
         return 0.80;
+      }
+      if (isSuitableForOccasion(shoe, 'Olahraga')) {
+        return 0.45;
       }
       return 0.0;
     }
@@ -752,6 +929,18 @@ class RecommendationService {
         return 1.0;
       }
       return 0.75;
+    }
+
+    if (normOccasion == 'organization') {
+      if (name.contains('pantofel') ||
+          name.contains('oxford') ||
+          name.contains('derby') ||
+          name.contains('loafer') ||
+          styles.contains('formal') ||
+          styles.contains('semi-formal')) {
+        return 1.0;
+      }
+      return 0.65;
     }
 
     return 0.80;
@@ -798,7 +987,7 @@ class RecommendationService {
     }
 
     if (normOccasion == 'casual') {
-      if (_containsAny(name, _strictFormalOnlyKeywords)) return 0.0;
+      if (_hasStrictFormalOnlyKeyword(name)) return 0.0;
       if (styles.contains('casual') || styles.contains('semi-formal')) {
         return 0.90;
       }

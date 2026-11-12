@@ -21,23 +21,27 @@ final clothesForRecommendationProvider =
 // ==================== RECOMMENDATION STATE ====================
 class RecommendationState {
   final bool isLoading;
+  final String selectedOccasion;
   final OutfitRecommendation? recommendation;
   final String? error;
 
   const RecommendationState({
     this.isLoading = false,
+    this.selectedOccasion = 'Kuliah',
     this.recommendation,
     this.error,
   });
 
   RecommendationState copyWith({
     bool? isLoading,
+    String? selectedOccasion,
     OutfitRecommendation? recommendation,
     bool clearRecommendation = false,
     String? error,
   }) {
     return RecommendationState(
       isLoading: isLoading ?? this.isLoading,
+      selectedOccasion: selectedOccasion ?? this.selectedOccasion,
       recommendation:
           clearRecommendation ? null : (recommendation ?? this.recommendation),
       error: error,
@@ -56,7 +60,7 @@ class RecommendationNotifier extends StateNotifier<RecommendationState> {
     // Dengarkan perubahan pada daftar pakaian untuk rekomendasi secara reaktif
     _ref.listen<List<ClothModel>>(clothesForRecommendationProvider, (prev, next) {
       if (next.isNotEmpty) {
-        // Jika belum ada rekomendasi, atau sebelumnya error karena belum cukup pakaian saat loading awal
+        // Jika belum ada rekomendasi (atau error sebelumnya setelah lemari berubah)
         if (state.recommendation == null || state.error == 'Belum cukup') {
           recommend(_currentOccasion);
         } else {
@@ -75,6 +79,7 @@ class RecommendationNotifier extends StateNotifier<RecommendationState> {
     _currentOccasion = occasion;
     state = state.copyWith(
       isLoading: true,
+      selectedOccasion: occasion,
       clearRecommendation: true,
       error: null,
     );
@@ -86,6 +91,7 @@ class RecommendationNotifier extends StateNotifier<RecommendationState> {
       if (!service.canRecommend(clothes)) {
         state = state.copyWith(
           isLoading: false,
+          selectedOccasion: occasion,
           clearRecommendation: true,
           error: 'Belum cukup',
         );
@@ -105,10 +111,14 @@ class RecommendationNotifier extends StateNotifier<RecommendationState> {
         excludedIds: recentIds.toList(),
       );
 
-      state = RecommendationState(recommendation: result);
+      state = RecommendationState(
+        selectedOccasion: occasion,
+        recommendation: result,
+      );
     } on Exception catch (e) {
       state = state.copyWith(
         isLoading: false,
+        selectedOccasion: occasion,
         clearRecommendation: true,
         error: ErrorHandler.handle(e),
       );
@@ -123,13 +133,22 @@ class RecommendationNotifier extends StateNotifier<RecommendationState> {
       return recommend(occasion);
     }
 
-    state = state.copyWith(isLoading: true, error: null);
+    state = state.copyWith(
+      isLoading: true,
+      selectedOccasion: occasion,
+      error: null,
+    );
     try {
       final clothes = _ref.read(clothesForRecommendationProvider);
       final service = _ref.read(recommendationServiceProvider);
 
       if (!service.canRecommend(clothes)) {
-        state = state.copyWith(isLoading: false, error: 'Belum cukup');
+        state = state.copyWith(
+          isLoading: false,
+          selectedOccasion: occasion,
+          clearRecommendation: true,
+          error: 'Belum cukup',
+        );
         return;
       }
 
@@ -156,9 +175,17 @@ class RecommendationNotifier extends StateNotifier<RecommendationState> {
 
       result ??= service.recommend(clothes: clothes, occasion: occasion);
 
-      state = RecommendationState(recommendation: result);
+      state = RecommendationState(
+        selectedOccasion: occasion,
+        recommendation: result,
+      );
     } on Exception catch (e) {
-      state = state.copyWith(isLoading: false, error: ErrorHandler.handle(e));
+      state = state.copyWith(
+        isLoading: false,
+        selectedOccasion: occasion,
+        clearRecommendation: true,
+        error: ErrorHandler.handle(e),
+      );
     }
   }
 

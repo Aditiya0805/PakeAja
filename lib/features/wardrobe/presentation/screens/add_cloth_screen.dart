@@ -60,6 +60,15 @@ class _AddClothScreenState extends ConsumerState<AddClothScreen> {
     super.dispose();
   }
 
+  void _refreshSuggestedStyles() {
+    if (_userEditedStyles) return;
+    final combinedHint =
+        '${_nameController.text} ${_notesController.text}'.trim();
+    _selectedStyles = ref
+        .read(recommendationServiceProvider)
+        .suggestStylesForName(combinedHint, category: _category);
+  }
+
   Future<void> _pickImage(bool fromCamera) async {
     final imageService = ref.read(imageServiceProvider);
     final result = fromCamera
@@ -157,15 +166,7 @@ class _AddClothScreenState extends ConsumerState<AddClothScreen> {
                 // Nama
                 TextFormField(
                   controller: _nameController,
-                  onChanged: (value) {
-                    setState(() {
-                      if (!_userEditedStyles) {
-                        _selectedStyles = ref
-                            .read(recommendationServiceProvider)
-                            .suggestStylesForName(value, category: _category);
-                      }
-                    });
-                  },
+                  onChanged: (_) => setState(_refreshSuggestedStyles),
                   validator: (v) {
                     if (v == null || v.trim().isEmpty) {
                       return 'Nama pakaian wajib diisi';
@@ -190,7 +191,10 @@ class _AddClothScreenState extends ConsumerState<AddClothScreen> {
                     return ChoiceChip(
                       label: Text(cat.label),
                       selected: _category == cat,
-                      onSelected: (_) => setState(() => _category = cat),
+                      onSelected: (_) => setState(() {
+                        _category = cat;
+                        _refreshSuggestedStyles();
+                      }),
                     );
                   }).toList(),
                 ),
@@ -245,10 +249,11 @@ class _AddClothScreenState extends ConsumerState<AddClothScreen> {
                 // Catatan opsional
                 TextField(
                   controller: _notesController,
+                  onChanged: (_) => setState(_refreshSuggestedStyles),
                   maxLines: 2,
                   decoration: const InputDecoration(
                     labelText: 'Catatan (opsional)',
-                    hintText: 'Contoh: Cocok untuk acara resmi',
+                    hintText: 'Contoh: Cocok untuk acara resmi atau olahraga',
                     alignLabelWithHint: true,
                   ),
                 ),

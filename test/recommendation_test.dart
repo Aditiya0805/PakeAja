@@ -514,5 +514,163 @@ void main() {
     expect(casualFilter.matches(kaosSantai), isTrue);
     expect(formalFilter.matches(kaosSantai), isFalse);
   });
+
+  test('Auto-matches Olahraga items including sport shorts, singlet, and plain kaos fallback', () {
+    final wardrobe = [
+      ClothModel(
+        id: 'top_kaos',
+        name: 'Kaos Polos Putih',
+        category: ClothCategory.top,
+        color: 'white',
+        styles: const [ClothStyle.casual],
+        weather: ClothWeather.hot,
+        imageUrl: '',
+        createdAt: DateTime.now(),
+      ),
+      ClothModel(
+        id: 'top_kemeja',
+        name: 'Kemeja Short Sleeve Kerja',
+        category: ClothCategory.top,
+        color: 'blue',
+        styles: const [ClothStyle.casual],
+        weather: ClothWeather.cool,
+        imageUrl: '',
+        createdAt: DateTime.now(),
+      ),
+      ClothModel(
+        id: 'bottom_sport_short',
+        name: 'Celana Pendek Olahraga Lari',
+        category: ClothCategory.bottom,
+        color: 'black',
+        styles: const [ClothStyle.casual], // simulasi data lama default casual
+        weather: ClothWeather.hot,
+        imageUrl: '',
+        createdAt: DateTime.now(),
+      ),
+      ClothModel(
+        id: 'bottom_pantai',
+        name: 'Celana Pendek Pantai Hawaii',
+        category: ClothCategory.bottom,
+        color: 'cream',
+        styles: const [ClothStyle.casual],
+        weather: ClothWeather.hot,
+        imageUrl: '',
+        createdAt: DateTime.now(),
+      ),
+      ClothModel(
+        id: 'shoe_putih',
+        name: 'Sepatu Putih Harian',
+        category: ClothCategory.shoes,
+        color: 'white',
+        styles: const [ClothStyle.casual],
+        weather: ClothWeather.cool,
+        imageUrl: '',
+        createdAt: DateTime.now(),
+      ),
+      ClothModel(
+        id: 'shoe_pantofel',
+        name: 'Sepatu Pantofel Hitam',
+        category: ClothCategory.shoes,
+        color: 'black',
+        styles: const [ClothStyle.formal],
+        weather: ClothWeather.cool,
+        imageUrl: '',
+        createdAt: DateTime.now(),
+      ),
+    ];
+
+    final sportRec = service.recommend(clothes: wardrobe, occasion: 'Olahraga');
+    expect(sportRec.itemIds.contains('top_kaos'), isTrue);
+    expect(sportRec.itemIds.contains('bottom_sport_short'), isTrue);
+    expect(sportRec.itemIds.contains('shoe_putih'), isTrue);
+    expect(sportRec.itemIds.contains('bottom_pantai'), isFalse);
+    expect(sportRec.itemIds.contains('shoe_pantofel'), isFalse);
+
+    // Pastikan "Kemeja Short Sleeve" tidak diblokir keyword "short" di Semi Formal & Kuliah
+    final kemejaShortSleeve = wardrobe[1];
+    expect(service.isSuitableForOccasion(kemejaShortSleeve, 'Semi Formal'), isTrue);
+    expect(service.isSuitableForOccasion(kemejaShortSleeve, 'Kuliah'), isTrue);
+  });
+
+  test('Auto-matches Organisasi and Formal agendas from Indonesian item names', () {
+    final wardrobe = [
+      ClothModel(
+        id: 'top_pdh',
+        name: 'Kemeja PDH Organisasi',
+        category: ClothCategory.top,
+        color: 'navy',
+        styles: const [ClothStyle.casual],
+        weather: ClothWeather.cool,
+        imageUrl: '',
+        createdAt: DateTime.now(),
+      ),
+      ClothModel(
+        id: 'top_kemeja_putih',
+        name: 'Kemeja Putih Lengan Panjang',
+        category: ClothCategory.top,
+        color: 'white',
+        styles: const [ClothStyle.casual],
+        weather: ClothWeather.cool,
+        imageUrl: '',
+        createdAt: DateTime.now(),
+      ),
+      ClothModel(
+        id: 'bottom_jeans',
+        name: 'Celana Jeans Hitam',
+        category: ClothCategory.bottom,
+        color: 'black',
+        styles: const [ClothStyle.casual],
+        weather: ClothWeather.cool,
+        imageUrl: '',
+        createdAt: DateTime.now(),
+      ),
+      ClothModel(
+        id: 'bottom_bahan',
+        name: 'Celana Bahan Hitam',
+        category: ClothCategory.bottom,
+        color: 'black',
+        styles: const [ClothStyle.casual],
+        weather: ClothWeather.cool,
+        imageUrl: '',
+        createdAt: DateTime.now(),
+      ),
+      ClothModel(
+        id: 'shoe_sneakers',
+        name: 'Sneakers Putih',
+        category: ClothCategory.shoes,
+        color: 'white',
+        styles: const [ClothStyle.casual],
+        weather: ClothWeather.cool,
+        imageUrl: '',
+        createdAt: DateTime.now(),
+      ),
+      ClothModel(
+        id: 'shoe_pantofel',
+        name: 'Sepatu Pantofel Hitam',
+        category: ClothCategory.shoes,
+        color: 'black',
+        styles: const [ClothStyle.casual],
+        weather: ClothWeather.cool,
+        imageUrl: '',
+        createdAt: DateTime.now(),
+      ),
+    ];
+
+    final orgRec = service.recommend(clothes: wardrobe, occasion: 'Organisasi');
+    expect(orgRec.itemIds.contains('top_pdh') || orgRec.itemIds.contains('top_kemeja_putih'), isTrue);
+    expect(orgRec.itemIds.contains('bottom_bahan'), isTrue);
+    expect(orgRec.itemIds.contains('shoe_pantofel'), isTrue);
+
+    final formalRec = service.recommend(clothes: wardrobe, occasion: 'Formal');
+    expect(formalRec.itemIds.contains('top_kemeja_putih'), isTrue);
+    expect(formalRec.itemIds.contains('bottom_bahan'), isTrue);
+    expect(formalRec.itemIds.contains('shoe_pantofel'), isTrue);
+
+    // Jika hanya ada Kemeja PDH + Jeans + Sneakers untuk Organisasi, tetap cocok otomatis
+    final orgCasualFit = [wardrobe[0], wardrobe[2], wardrobe[4]];
+    final orgFallbackRec =
+        service.recommend(clothes: orgCasualFit, occasion: 'Organisasi');
+    expect(orgFallbackRec.itemIds, containsAll(['top_pdh', 'bottom_jeans', 'shoe_sneakers']));
+  });
 }
 

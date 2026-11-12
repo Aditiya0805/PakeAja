@@ -20,8 +20,6 @@ class HomeScreen extends ConsumerStatefulWidget {
 }
 
 class _HomeScreenState extends ConsumerState<HomeScreen> {
-  String _selectedOccasion = 'Kuliah';
-
   // Daftar occasion utama di beranda (sesuai tampilan desain)
   final List<Map<String, dynamic>> _occasions = [
     {
@@ -68,20 +66,32 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     },
   ];
 
+  String get _selectedOccasion =>
+      ref.read(recommendationProvider).selectedOccasion;
+
   @override
   void initState() {
     super.initState();
-    // Inisialisasi rekomendasi untuk occasion default
+    // Inisialisasi rekomendasi untuk occasion default jika belum ada
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      ref.read(recommendationProvider.notifier).recommend(_selectedOccasion);
+      if (!mounted) return;
+      final state = ref.read(recommendationProvider);
+      if (state.recommendation == null &&
+          state.error == null &&
+          !state.isLoading) {
+        ref
+            .read(recommendationProvider.notifier)
+            .recommend(state.selectedOccasion);
+      }
     });
   }
 
   void _onOccasionSelected(String occasion) {
-    if (_selectedOccasion == occasion) return;
-    setState(() {
-      _selectedOccasion = occasion;
-    });
+    final current = ref.read(recommendationProvider);
+    if (current.selectedOccasion == occasion &&
+        (current.recommendation != null || current.error != null)) {
+      return;
+    }
     ref.read(recommendationProvider.notifier).recommend(occasion);
   }
 
@@ -110,16 +120,22 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final user = ref.watch(userDataProvider).valueOrNull;
     final clothes = ref.watch(clothesListProvider).valueOrNull ?? [];
     final recState = ref.watch(recommendationProvider);
+    final activeOccasion = recState.selectedOccasion;
 
     // Otomatis buat rekomendasi jika pakaian sudah cukup dan rekomendasi masih kosong
     if (_hasEnoughClothes(clothes) &&
         recState.recommendation == null &&
+        recState.error == null &&
         !recState.isLoading) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
+        final latest = ref.read(recommendationProvider);
         if (mounted &&
-            ref.read(recommendationProvider).recommendation == null &&
-            !ref.read(recommendationProvider).isLoading) {
-          ref.read(recommendationProvider.notifier).recommend(_selectedOccasion);
+            latest.recommendation == null &&
+            latest.error == null &&
+            !latest.isLoading) {
+          ref
+              .read(recommendationProvider.notifier)
+              .recommend(latest.selectedOccasion);
         }
       });
     }
@@ -138,7 +154,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           onRefresh: () async {
             await ref
                 .read(recommendationProvider.notifier)
-                .recommend(_selectedOccasion);
+                .recommend(activeOccasion);
           },
           child: SingleChildScrollView(
             physics: const AlwaysScrollableScrollPhysics(),
@@ -684,7 +700,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Header "Rekomendasi Hari Ini" + Badge "98% Cocok"
+        // Header "Rekomendasi Hari Ini" + Badge "% Cocok"
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
@@ -706,28 +722,31 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 ),
               ],
             ),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-              decoration: BoxDecoration(
-                color: const Color(0xFFE2F7EB),
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Icon(Icons.circle, size: 7, color: Color(0xFF1E8E3E)),
-                  const SizedBox(width: 5),
-                  Text(
-                    '${recState.recommendation != null ? recState.recommendation!.score.round() : 98}% Cocok',
-                    style: const TextStyle(
-                      fontSize: 11.5,
-                      fontWeight: FontWeight.bold,
-                      color: Color(0xFF167C37),
+            if (recState.recommendation != null)
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFE2F7EB),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.circle,
+                        size: 7, color: Color(0xFF1E8E3E)),
+                    const SizedBox(width: 5),
+                    Text(
+                      '${recState.recommendation!.score.round()}% Cocok',
+                      style: const TextStyle(
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF167C37),
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-            ),
           ],
         ),
         const SizedBox(height: 14),
@@ -842,6 +861,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 )
               else if (!_hasEnoughClothes(clothes))
                 _buildMissingClothesChecklist(clothes)
+              else if (recState.error != null)
+                _buildIncompatibleOccasionCard(
+                    recState.error!, _selectedOccasion)
               else if (recState.recommendation != null)
                 _buildRecommendationContent(
                     recState.recommendation!, clothes)
@@ -851,6 +873,85 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildIncompatibleOccasionCard(
+    String errorMessage,
+    String occasion,
+  ) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFDF2F2),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFFAD1D1)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.style_outlined,
+                  color: AppTheme.primaryColor, size: 18),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'Belum ada pakaian yang pas untuk $occasion',
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 13.5,
+                    color: AppTheme.textPrimary,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Text(
+            errorMessage,
+            style: const TextStyle(
+              fontSize: 12.5,
+              color: Color(0xFF5A626A),
+              height: 1.35,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton(
+                  onPressed: () => context.push('/cloth/add'),
+                  style: OutlinedButton.styleFrom(
+                    side: const BorderSide(color: AppTheme.primaryColor),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                  child: Text(
+                    'Tambah Pakaian $occasion',
+                    style: const TextStyle(
+                      color: AppTheme.primaryColor,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 12.5,
+                    ),
+                  ),
+                ),
+              ),
+              if (occasion != 'Santai') ...[
+                const SizedBox(width: 8),
+                TextButton(
+                  onPressed: () => _onOccasionSelected('Santai'),
+                  child: const Text(
+                    'Coba Santai',
+                    style: TextStyle(fontSize: 12.5),
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ],
+      ),
     );
   }
 
@@ -991,12 +1092,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     OutfitRecommendation rec,
     List<ClothModel> clothes,
   ) {
-    final items = rec.itemIds
-        .map((id) => clothes.firstWhere(
-              (c) => c.id == id,
-              orElse: () => clothes.first,
-            ))
-        .toList();
+    final clothesById = {for (final c in clothes) c.id: c};
+    final items =
+        rec.itemIds.map((id) => clothesById[id]).whereType<ClothModel>().toList();
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,

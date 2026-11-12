@@ -69,16 +69,21 @@ class _RecommendationScreenState extends ConsumerState<RecommendationScreen> {
   @override
   void initState() {
     super.initState();
-    final currentRec = ref.read(recommendationProvider).recommendation;
-    if (widget.occasion != 'Kuliah') {
-      _selectedAgenda = widget.occasion;
-    } else if (currentRec != null && currentRec.occasion.isNotEmpty) {
-      _selectedAgenda = _getAgendaLabelForOccasion(currentRec.occasion);
-    } else {
-      _selectedAgenda = 'Kuliah';
-    }
+    final state = ref.read(recommendationProvider);
+    final initialOccasion =
+        widget.occasion != 'Kuliah' ? widget.occasion : state.selectedOccasion;
+    _selectedAgenda = _getAgendaLabelForOccasion(initialOccasion);
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      ref.read(recommendationProvider.notifier).recommend(_getOccasionKey());
+      if (!mounted) return;
+      final latest = ref.read(recommendationProvider);
+      if (widget.occasion != 'Kuliah' &&
+          latest.selectedOccasion != widget.occasion) {
+        ref.read(recommendationProvider.notifier).recommend(widget.occasion);
+      } else if (latest.recommendation == null &&
+          latest.error == null &&
+          !latest.isLoading) {
+        ref.read(recommendationProvider.notifier).recommend(_getOccasionKey());
+      }
     });
   }
 
@@ -141,6 +146,11 @@ class _RecommendationScreenState extends ConsumerState<RecommendationScreen> {
   @override
   Widget build(BuildContext context) {
     final recState = ref.watch(recommendationProvider);
+    final syncedLabel = _getAgendaLabelForOccasion(recState.selectedOccasion);
+    if (_selectedAgenda != syncedLabel) {
+      _selectedAgenda = syncedLabel;
+      _customSwapped.clear();
+    }
     final clothes = ref.watch(clothesListProvider).valueOrNull ?? [];
 
     // Otomatis buat rekomendasi jika pakaian sudah cukup dan rekomendasi masih kosong
@@ -469,12 +479,11 @@ class _RecommendationScreenState extends ConsumerState<RecommendationScreen> {
     required OutfitRecommendation rec,
     required List<ClothModel> clothes,
   }) {
-    // Ambil item dari rec.itemIds
+    // Ambil item dari rec.itemIds secara aman tanpa fallback ke item acak
+    final clothesById = {for (final c in clothes) c.id: c};
     final initialItems = rec.itemIds
-        .map((id) => clothes.firstWhere(
-              (c) => c.id == id,
-              orElse: () => clothes.first,
-            ))
+        .map((id) => clothesById[id])
+        .whereType<ClothModel>()
         .toList();
 
     // Petakan ke masing-masing slot (Atasan, Bawahan, Sepatu, Outer)
