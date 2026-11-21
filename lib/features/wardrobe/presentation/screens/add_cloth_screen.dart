@@ -91,7 +91,8 @@ class _AddClothScreenState extends ConsumerState<AddClothScreen> {
   }
 
   Future<void> _save() async {
-    if (!_formKey.currentState!.validate()) return;
+    final form = _formKey.currentState;
+    if (form == null || !form.validate()) return;
     if (_imageBytes == null) {
       setState(() => _error = 'Tambahkan foto pakaian terlebih dahulu.');
       return;

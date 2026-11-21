@@ -54,8 +54,9 @@ class ClothingCard extends StatelessWidget {
   }
 
   String _getWornText() {
-    if (cloth.lastWornAt != null) {
-      final diff = DateTime.now().difference(cloth.lastWornAt!);
+    final lastWorn = cloth.lastWornAt;
+    if (lastWorn != null) {
+      final diff = DateTime.now().difference(lastWorn);
       if (diff.inDays == 0) return 'Dipakai hari ini';
       if (diff.inDays == 1) return 'Pakai kemarin';
       if (diff.inDays < 7) return 'Pakai ${diff.inDays} hari lalu';

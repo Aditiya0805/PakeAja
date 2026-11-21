@@ -692,7 +692,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                         ? _buildMissingClothesChecklist(clothes)
                         : recState.error != null
                             ? _buildIncompatibleOccasionCard(
-                                recState.error!, _selectedOccasion)
+                                recState.error ?? '', _selectedOccasion)
                             : recState.recommendation != null
                                 ? _buildRecommendationContent(
                                     recState.recommendation!, clothes)
@@ -1615,19 +1615,23 @@ class _HeroHeader extends StatelessWidget {
                               color: Colors.white.withValues(alpha: 0.6),
                               width: 2.5),
                         ),
-                        child: CircleAvatar(
-                          radius: 23,
-                          backgroundColor:
-                              Colors.white.withValues(alpha: 0.2),
-                          backgroundImage: (user?.photoUrl != null &&
-                                  user!.photoUrl!.isNotEmpty)
-                              ? CachedNetworkImageProvider(user.photoUrl!)
-                              : null,
-                          child: (user?.photoUrl == null ||
-                                  user!.photoUrl!.isEmpty)
-                              ? const Icon(Icons.person,
-                                  color: Colors.white, size: 24)
-                              : null,
+                        child: Builder(
+                          builder: (context) {
+                            final photo = user?.photoUrl;
+                            final hasPhoto = photo != null && photo.isNotEmpty;
+                            return CircleAvatar(
+                              radius: 23,
+                              backgroundColor:
+                                  Colors.white.withValues(alpha: 0.2),
+                              backgroundImage: hasPhoto
+                                  ? CachedNetworkImageProvider(photo)
+                                  : null,
+                              child: hasPhoto
+                                  ? null
+                                  : const Icon(Icons.person,
+                                      color: Colors.white, size: 24),
+                            );
+                          },
                         ),
                       ),
                       const SizedBox(width: 13),

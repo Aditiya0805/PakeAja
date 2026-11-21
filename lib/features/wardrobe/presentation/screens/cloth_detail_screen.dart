@@ -126,7 +126,7 @@ class _ClothDetailScreenState extends ConsumerState<ClothDetailScreen> {
       }
       return ErrorWidgetPage(
         message: detailAsync.hasError
-            ? ErrorHandler.handle(detailAsync.error!)
+            ? ErrorHandler.handle(detailAsync.error)
             : 'Pakaian tidak ditemukan.',
         onRetry: () {
           ref.invalidate(clothDetailProvider(widget.clothId));

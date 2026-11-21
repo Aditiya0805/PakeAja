@@ -53,39 +53,41 @@ class AuthService {
   }
 
   FirebaseAuth get _auth {
-    if (_authInstance != null) return _authInstance!;
-    if (Firebase.apps.isNotEmpty) {
+    final cached = _authInstance;
+    if (cached != null) return cached;
+    try {
+      return _authInstance = FirebaseAuth.instance;
+    } catch (_) {
       try {
-        return _authInstance = FirebaseAuth.instance;
-      } catch (_) {
-        try {
+        if (Firebase.apps.isNotEmpty) {
           return _authInstance = FirebaseAuth.instanceFor(app: Firebase.app());
-        } catch (_) {}
-      }
+        }
+      } catch (_) {}
     }
     throw StateError('Firebase Auth belum terinisialisasi.');
   }
 
   FirebaseFirestore get _firestore {
-    if (_firestoreInstance != null) return _firestoreInstance!;
-    if (Firebase.apps.isNotEmpty) {
-      try {
-        final fs = FirebaseFirestore.instance;
-        if (kIsWeb) {
-          try {
-            fs.settings = const Settings(
-              persistenceEnabled: false,
-              webExperimentalForceLongPolling: true,
-            );
-          } catch (_) {}
-        }
-        return _firestoreInstance = fs;
-      } catch (_) {
+    final cached = _firestoreInstance;
+    if (cached != null) return cached;
+    try {
+      final fs = FirebaseFirestore.instance;
+      if (kIsWeb) {
         try {
-          return _firestoreInstance =
-              FirebaseFirestore.instanceFor(app: Firebase.app());
+          fs.settings = const Settings(
+            persistenceEnabled: false,
+            webExperimentalForceLongPolling: true,
+          );
         } catch (_) {}
       }
+      return _firestoreInstance = fs;
+    } catch (_) {
+      try {
+        if (Firebase.apps.isNotEmpty) {
+          return _firestoreInstance =
+              FirebaseFirestore.instanceFor(app: Firebase.app());
+        }
+      } catch (_) {}
     }
     throw StateError('Cloud Firestore belum terinisialisasi.');
   }
@@ -218,7 +220,7 @@ class AuthService {
     // === TAHAP 2: PROFIL & FIRESTORE TERISOLASI (TIDAK MEMBATALKAN HASIL LOGIN) ===
     if (name != null && name.trim().isNotEmpty) {
       final trimmed = name.trim();
-      if (user.displayName != trimmed) {
+      if ((user.displayName ?? '') != trimmed) {
         try {
           await user
               .updateDisplayName(trimmed)

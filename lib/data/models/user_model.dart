@@ -30,17 +30,23 @@ class UserModel {
   }
 
   factory UserModel.fromFirebaseUser(User user, {String? fallbackName}) {
-    final effectiveName = fallbackName?.trim().isNotEmpty == true
-        ? fallbackName!.trim()
-        : (user.displayName?.trim().isNotEmpty == true
-            ? user.displayName!.trim()
-            : (user.email?.contains('@') == true
-                ? user.email!.split('@').first
-                : 'Pengguna'));
+    final cleanFallback = fallbackName?.trim() ?? '';
+    final cleanDisplayName = user.displayName?.trim() ?? '';
+    final cleanEmail = user.email?.trim() ?? '';
+
+    String effectiveName = 'Pengguna';
+    if (cleanFallback.isNotEmpty) {
+      effectiveName = cleanFallback;
+    } else if (cleanDisplayName.isNotEmpty) {
+      effectiveName = cleanDisplayName;
+    } else if (cleanEmail.contains('@')) {
+      effectiveName = cleanEmail.split('@').first;
+    }
+
     return UserModel(
       uid: user.uid,
       name: effectiveName,
-      email: user.email ?? '',
+      email: cleanEmail,
       photoUrl: user.photoURL,
       createdAt: user.metadata.creationTime ?? DateTime.now(),
     );

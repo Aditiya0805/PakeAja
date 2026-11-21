@@ -1030,9 +1030,10 @@ class RecommendationService {
 
   // ==================== ROTASI PEMAKAIAN ====================
   double _rotationScore(ClothModel cloth) {
-    if (cloth.lastWornAt == null) return 1.0;
+    final lastWorn = cloth.lastWornAt;
+    if (lastWorn == null) return 1.0;
 
-    final days = DateTime.now().difference(cloth.lastWornAt!).inDays;
+    final days = DateTime.now().difference(lastWorn).inDays;
     if (days <= 1) return 0.20;
     if (days <= 3) return 0.50;
     if (days <= 7) return 0.75;

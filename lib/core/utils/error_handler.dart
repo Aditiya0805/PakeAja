@@ -55,6 +55,8 @@ class ErrorHandler {
         return 'Akun tidak ditemukan. Cek email kamu.';
       case 'wrong-password':
       case 'invalid-credential':
+      case 'INVALID_LOGIN_CREDENTIALS':
+      case 'invalid-login-credentials':
         return 'Email atau password salah. Silakan periksa kembali.';
       case 'invalid-email':
         return 'Format email tidak valid.';
@@ -78,8 +80,9 @@ class ErrorHandler {
       case 'cancelled-popup-request':
         return 'Login Google dibatalkan.';
       default:
-        if (e.message != null && e.message!.isNotEmpty) {
-          return e.message!;
+        final m = e.message;
+        if (m != null && m.isNotEmpty) {
+          return m;
         }
         return 'Gagal autentikasi (${e.code}). Silakan coba lagi.';
     }

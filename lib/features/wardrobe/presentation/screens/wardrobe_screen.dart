@@ -225,16 +225,20 @@ class _WardrobeScreenState extends ConsumerState<WardrobeScreen> {
             width: 2.5,
           ),
         ),
-        child: CircleAvatar(
-          radius: 22,
-          backgroundColor: Colors.white.withValues(alpha: 0.2),
-          backgroundImage: (user?.photoUrl != null &&
-                  user!.photoUrl!.isNotEmpty)
-              ? CachedNetworkImageProvider(user.photoUrl!)
-              : null,
-          child: (user?.photoUrl == null || user!.photoUrl!.isEmpty)
-              ? const Icon(Icons.person, color: Colors.white, size: 24)
-              : null,
+        child: Builder(
+          builder: (context) {
+            final photo = user?.photoUrl;
+            final hasPhoto = photo != null && photo.isNotEmpty;
+            return CircleAvatar(
+              radius: 22,
+              backgroundColor: Colors.white.withValues(alpha: 0.2),
+              backgroundImage:
+                  hasPhoto ? CachedNetworkImageProvider(photo) : null,
+              child: hasPhoto
+                  ? null
+                  : const Icon(Icons.person, color: Colors.white, size: 24),
+            );
+          },
         ),
       ),
       subtitle: 'PakeAja Wardrobe',

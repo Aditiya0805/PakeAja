@@ -24,7 +24,22 @@ final userStatsProvider =
   }
 
   if (clothesState.hasError) {
-    return AsyncValue.error(clothesState.error!, clothesState.stackTrace!);
+    return AsyncValue.error(
+      clothesState.error ?? 'Gagal memuat pakaian',
+      clothesState.stackTrace ?? StackTrace.current,
+    );
+  }
+  if (favoritesState.hasError) {
+    return AsyncValue.error(
+      favoritesState.error ?? 'Gagal memuat favorit',
+      favoritesState.stackTrace ?? StackTrace.current,
+    );
+  }
+  if (historyState.hasError) {
+    return AsyncValue.error(
+      historyState.error ?? 'Gagal memuat riwayat',
+      historyState.stackTrace ?? StackTrace.current,
+    );
   }
 
   final clothes = clothesState.valueOrNull ?? [];

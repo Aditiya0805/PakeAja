@@ -109,7 +109,7 @@ class _EditClothScreenState extends ConsumerState<EditClothScreen> {
     } else if (result.error != null && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(result.error!),
+          content: Text(result.error ?? 'Gagal memproses gambar.'),
           backgroundColor: AppTheme.errorColor,
         ),
       );
@@ -146,7 +146,8 @@ class _EditClothScreenState extends ConsumerState<EditClothScreen> {
   }
 
   Future<void> _save() async {
-    if (!_formKey.currentState!.validate()) return;
+    final form = _formKey.currentState;
+    if (form == null || !form.validate()) return;
     var user = ref.read(authStateProvider).valueOrNull;
     if (user == null) {
       try {

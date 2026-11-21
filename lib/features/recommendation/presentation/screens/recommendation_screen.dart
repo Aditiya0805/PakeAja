@@ -243,7 +243,7 @@ class _RecommendationScreenState extends ConsumerState<RecommendationScreen> {
                         ? _buildMissingClothesWidget()
                         : recState.error != null
                             ? _buildIncompatibleOccasionWidget(
-                                recState.error!,
+                                recState.error ?? '',
                                 _getOccasionKey(),
                               )
                             : recState.recommendation != null

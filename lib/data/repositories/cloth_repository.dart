@@ -23,7 +23,8 @@ class ClothRepository {
   ClothRepository({FirebaseFirestore? db}) : _dbInstance = db;
 
   FirebaseFirestore get _db {
-    if (_dbInstance != null) return _dbInstance!;
+    final cached = _dbInstance;
+    if (cached != null) return cached;
     try {
       if (Firebase.apps.isNotEmpty) {
         return _dbInstance = FirebaseFirestore.instance;
@@ -141,7 +142,8 @@ class OutfitRepository {
   OutfitRepository({FirebaseFirestore? db}) : _dbInstance = db;
 
   FirebaseFirestore get _db {
-    if (_dbInstance != null) return _dbInstance!;
+    final cached = _dbInstance;
+    if (cached != null) return cached;
     try {
       if (Firebase.apps.isNotEmpty) {
         return _dbInstance = FirebaseFirestore.instance;

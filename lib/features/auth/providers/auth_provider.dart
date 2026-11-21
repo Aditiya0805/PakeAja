@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:pakeaja/core/providers/service_providers.dart';
@@ -89,9 +90,13 @@ class AuthController extends AsyncNotifier<void> {
             ),
           );
       if (result.success) {
-        ref.read(sessionUserNameProvider.notifier).state =
-            trimmedName.isNotEmpty ? trimmedName : null;
-        ref.invalidate(userDataProvider);
+        try {
+          ref.read(sessionUserNameProvider.notifier).state =
+              trimmedName.isNotEmpty ? trimmedName : null;
+          ref.invalidate(userDataProvider);
+        } catch (e) {
+          debugPrint('Post-register session update non-fatal: $e');
+        }
         state = const AsyncValue.data(null);
         return true;
       }
@@ -130,9 +135,13 @@ class AuthController extends AsyncNotifier<void> {
             ),
           );
       if (result.success) {
-        ref.read(sessionUserNameProvider.notifier).state =
-            trimmedName.isNotEmpty ? trimmedName : null;
-        ref.invalidate(userDataProvider);
+        try {
+          ref.read(sessionUserNameProvider.notifier).state =
+              trimmedName.isNotEmpty ? trimmedName : null;
+          ref.invalidate(userDataProvider);
+        } catch (e) {
+          debugPrint('Post-register session update non-fatal: $e');
+        }
         state = const AsyncValue.data(null);
         return true;
       }
@@ -165,9 +174,13 @@ class AuthController extends AsyncNotifier<void> {
             ),
           );
       if (result.success) {
-        ref.read(sessionUserNameProvider.notifier).state =
-            trimmedName.isNotEmpty ? trimmedName : null;
-        ref.invalidate(userDataProvider);
+        try {
+          ref.read(sessionUserNameProvider.notifier).state =
+              trimmedName.isNotEmpty ? trimmedName : null;
+          ref.invalidate(userDataProvider);
+        } catch (e) {
+          debugPrint('Post-register session update non-fatal: $e');
+        }
         state = const AsyncValue.data(null);
         return true;
       }
