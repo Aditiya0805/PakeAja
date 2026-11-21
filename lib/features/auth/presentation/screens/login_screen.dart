@@ -38,15 +38,24 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   }
 
   Future<void> _login() async {
-    if (!_formKey.currentState!.validate()) return;
+    final form = _formKey.currentState;
+    if (form == null || !form.validate()) return;
 
-    final success = await ref.read(authControllerProvider.notifier).login(
-          email: _emailController.text,
-          password: _passwordController.text,
-          name: _nameController.text,
+    try {
+      final success = await ref.read(authControllerProvider.notifier).login(
+            email: _emailController.text.trim(),
+            password: _passwordController.text,
+            name: _nameController.text.trim(),
+          );
+      if (success && mounted) {
+        context.go('/');
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Terjadi kesalahan: $e')),
         );
-    if (success && mounted) {
-      context.go('/');
+      }
     }
   }
 
@@ -58,14 +67,23 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     }
 
     setState(() => _isGoogleLoading = true);
-    final success = await ref
-        .read(authControllerProvider.notifier)
-        .signInWithGoogle(name: nameVal.isNotEmpty ? nameVal : null);
-    if (mounted) {
-      setState(() => _isGoogleLoading = false);
-    }
-    if (success && mounted) {
-      context.go('/');
+    try {
+      final success = await ref
+          .read(authControllerProvider.notifier)
+          .signInWithGoogle(name: nameVal.isNotEmpty ? nameVal : null);
+      if (success && mounted) {
+        context.go('/');
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Login Google gagal: $e')),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isGoogleLoading = false);
+      }
     }
   }
 

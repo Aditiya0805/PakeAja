@@ -4,6 +4,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:pakeaja/core/providers/service_providers.dart';
+import 'package:pakeaja/core/utils/auth_result.dart';
+import 'package:pakeaja/core/utils/error_handler.dart';
 import 'package:pakeaja/data/models/user_model.dart';
 import 'package:pakeaja/data/services/auth_service.dart';
 
@@ -16,7 +18,18 @@ final authStateProvider = StreamProvider<User?>((ref) {
 final userDataProvider = StreamProvider.autoDispose<UserModel?>((ref) {
   final user = ref.watch(authStateProvider).valueOrNull;
   if (user == null) return Stream.value(null);
-  return ref.watch(userRepositoryProvider).watchUser(user.uid);
+
+  final sessionName = ref.watch(sessionUserNameProvider);
+  return ref
+      .watch(userRepositoryProvider)
+      .watchUser(user.uid)
+      .map((docUser) {
+    if (docUser != null) {
+      return docUser;
+    }
+    // Fallback otomatis dari data FirebaseAuth jika dokumen Firestore belum ada / sedang sync
+    return UserModel.fromFirebaseUser(user, fallbackName: sessionName);
+  });
 });
 
 /// Nama sementara di sesi aktif (diupdate langsung saat user input nama saat login/register/edit)
@@ -62,20 +75,38 @@ class AuthController extends AsyncNotifier<void> {
   }) async {
     state = const AsyncValue.loading();
     final trimmedName = name.trim();
-    final result = await _auth.register(
-      name: trimmedName,
-      email: email,
-      password: password,
-    );
-    if (result.success) {
-      ref.read(sessionUserNameProvider.notifier).state =
-          trimmedName.isNotEmpty ? trimmedName : null;
-      ref.invalidate(userDataProvider);
-      state = const AsyncValue.data(null);
-      return true;
+    try {
+      final result = await _auth
+          .register(
+            name: trimmedName,
+            email: email,
+            password: password,
+          )
+          .timeout(
+            const Duration(seconds: 18),
+            onTimeout: () => AuthResult.fail(
+              'Koneksi timeout. Periksa jaringan internet kamu atau muat ulang halaman.',
+            ),
+          );
+      if (result.success) {
+        ref.read(sessionUserNameProvider.notifier).state =
+            trimmedName.isNotEmpty ? trimmedName : null;
+        ref.invalidate(userDataProvider);
+        state = const AsyncValue.data(null);
+        return true;
+      }
+      state = AsyncValue.error(
+        result.message ?? 'Pendaftaran gagal.',
+        StackTrace.current,
+      );
+      return false;
+    } catch (e, st) {
+      state = AsyncValue.error(
+        ErrorHandler.handle(e),
+        st,
+      );
+      return false;
     }
-    state = AsyncValue.error(result.message ?? 'Gagal', StackTrace.current);
-    return false;
   }
 
   Future<bool> login({
@@ -85,48 +116,102 @@ class AuthController extends AsyncNotifier<void> {
   }) async {
     state = const AsyncValue.loading();
     final trimmedName = name?.trim() ?? '';
-    final result = await _auth.login(
-      email: email,
-      password: password,
-      name: trimmedName.isNotEmpty ? trimmedName : null,
-    );
-    if (result.success) {
-      ref.read(sessionUserNameProvider.notifier).state =
-          trimmedName.isNotEmpty ? trimmedName : null;
-      ref.invalidate(userDataProvider);
-      state = const AsyncValue.data(null);
-      return true;
+    try {
+      final result = await _auth
+          .login(
+            email: email,
+            password: password,
+            name: trimmedName.isNotEmpty ? trimmedName : null,
+          )
+          .timeout(
+            const Duration(seconds: 18),
+            onTimeout: () => AuthResult.fail(
+              'Koneksi timeout. Periksa jaringan internet kamu atau muat ulang halaman.',
+            ),
+          );
+      if (result.success) {
+        ref.read(sessionUserNameProvider.notifier).state =
+            trimmedName.isNotEmpty ? trimmedName : null;
+        ref.invalidate(userDataProvider);
+        state = const AsyncValue.data(null);
+        return true;
+      }
+      state = AsyncValue.error(
+        result.message ?? 'Gagal masuk.',
+        StackTrace.current,
+      );
+      return false;
+    } catch (e, st) {
+      state = AsyncValue.error(
+        ErrorHandler.handle(e),
+        st,
+      );
+      return false;
     }
-    state = AsyncValue.error(result.message ?? 'Gagal', StackTrace.current);
-    return false;
   }
 
   Future<bool> signInWithGoogle({String? name}) async {
     state = const AsyncValue.loading();
     final trimmedName = name?.trim() ?? '';
-    final result = await _auth.signInWithGoogle(
-      name: trimmedName.isNotEmpty ? trimmedName : null,
-    );
-    if (result.success) {
-      ref.read(sessionUserNameProvider.notifier).state =
-          trimmedName.isNotEmpty ? trimmedName : null;
-      ref.invalidate(userDataProvider);
-      state = const AsyncValue.data(null);
-      return true;
+    try {
+      final result = await _auth
+          .signInWithGoogle(
+            name: trimmedName.isNotEmpty ? trimmedName : null,
+          )
+          .timeout(
+            const Duration(seconds: 70),
+            onTimeout: () => AuthResult.fail(
+              'Waktu masuk Google habis. Silakan coba lagi.',
+            ),
+          );
+      if (result.success) {
+        ref.read(sessionUserNameProvider.notifier).state =
+            trimmedName.isNotEmpty ? trimmedName : null;
+        ref.invalidate(userDataProvider);
+        state = const AsyncValue.data(null);
+        return true;
+      }
+      state = AsyncValue.error(
+        result.message ?? 'Gagal masuk dengan Google.',
+        StackTrace.current,
+      );
+      return false;
+    } catch (e, st) {
+      state = AsyncValue.error(
+        ErrorHandler.handle(e),
+        st,
+      );
+      return false;
     }
-    state = AsyncValue.error(result.message ?? 'Gagal', StackTrace.current);
-    return false;
   }
 
   Future<bool> forgotPassword(String email) async {
     state = const AsyncValue.loading();
-    final result = await _auth.sendPasswordResetEmail(email);
-    if (result.success) {
-      state = const AsyncValue.data(null);
-      return true;
+    try {
+      final result = await _auth
+          .sendPasswordResetEmail(email)
+          .timeout(
+            const Duration(seconds: 18),
+            onTimeout: () => AuthResult.fail(
+              'Koneksi timeout saat mengirim email reset password.',
+            ),
+          );
+      if (result.success) {
+        state = const AsyncValue.data(null);
+        return true;
+      }
+      state = AsyncValue.error(
+        result.message ?? 'Gagal mengirim email reset.',
+        StackTrace.current,
+      );
+      return false;
+    } catch (e, st) {
+      state = AsyncValue.error(
+        ErrorHandler.handle(e),
+        st,
+      );
+      return false;
     }
-    state = AsyncValue.error(result.message ?? 'Gagal', StackTrace.current);
-    return false;
   }
 
   Future<bool> logout() async {

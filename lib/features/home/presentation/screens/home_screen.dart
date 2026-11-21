@@ -1619,10 +1619,12 @@ class _HeroHeader extends StatelessWidget {
                           radius: 23,
                           backgroundColor:
                               Colors.white.withValues(alpha: 0.2),
-                          backgroundImage: user?.photoUrl != null
-                              ? CachedNetworkImageProvider(user!.photoUrl!)
+                          backgroundImage: (user?.photoUrl != null &&
+                                  user!.photoUrl!.isNotEmpty)
+                              ? CachedNetworkImageProvider(user.photoUrl!)
                               : null,
-                          child: user?.photoUrl == null
+                          child: (user?.photoUrl == null ||
+                                  user!.photoUrl!.isEmpty)
                               ? const Icon(Icons.person,
                                   color: Colors.white, size: 24)
                               : null,

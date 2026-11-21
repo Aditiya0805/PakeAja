@@ -1,4 +1,6 @@
 import 'dart:async';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -13,9 +15,10 @@ import 'core/theme/app_theme.dart';
 import 'firebase_options.dart';
 
 Future<void> main() async {
+  // 1. Flutter binding wajib dijalankan pertama kali
   WidgetsFlutterBinding.ensureInitialized();
 
-  // 1. Tangani uncaught error global agar tidak menyebabkan layar putih beku di device mana pun
+  // 2. Tangani uncaught error global agar tidak menyebabkan layar putih beku di device mana pun
   FlutterError.onError = (details) {
     FlutterError.presentError(details);
     debugPrint('FlutterError: ${details.exceptionAsString()}');
@@ -25,41 +28,54 @@ Future<void> main() async {
     return true; // Mencegah crash fatal pada engine web
   };
 
-  // 2. Load .env secara aman (fallback otomatis tersedia jika hosting/web memblokir file .env)
+  // 3. Load .env secara aman (jika file .env tidak ditemukan di web, proses tetap lanjut)
   try {
     await dotenv.load();
   } catch (e) {
     debugPrint('dotenv.load info: Menggunakan konfigurasi environment bawaan ($e)');
   }
 
-  // 3. Inisialisasi locale bahasa Indonesia secara aman
+  // 4. Inisialisasi locale bahasa Indonesia secara aman
   try {
     await initializeDateFormatting('id_ID', null);
   } catch (e) {
     debugPrint('initializeDateFormatting info: $e');
   }
 
-  // 4. Inisialisasi Firebase secara aman lintas platform dengan timeout agar tidak pernah nge-stuck
+  // 5. Inisialisasi Firebase secara langsung lintas platform (tidak diskip jika dotenv gagal)
   try {
     if (Firebase.apps.isEmpty) {
       await Firebase.initializeApp(
         options: DefaultFirebaseOptions.currentPlatform,
-      ).timeout(
-        const Duration(seconds: 4),
-        onTimeout: () {
-          debugPrint('Firebase init timeout (melanjutkan render UI agar tidak stuck)');
-          if (Firebase.apps.isNotEmpty) {
-            return Firebase.app();
-          }
-          throw TimeoutException('Firebase inisialisasi terlalu lama.');
-        },
       );
     }
+    // Khusus untuk platform Web (kIsWeb)
+    if (kIsWeb) {
+      // a. Atur Firestore settings untuk kestabilan koneksi WebKit iOS
+      FirebaseFirestore.instance.settings = const Settings(
+        persistenceEnabled: false,
+        webExperimentalForceLongPolling: true,
+      );
+
+      // b. Atur Persistence FirebaseAuth dengan fallback aman jika WebKit memblokir local storage
+      try {
+        await FirebaseAuth.instance.setPersistence(Persistence.LOCAL);
+      } catch (e) {
+        debugPrint('FirebaseAuth setPersistence LOCAL fallback to SESSION: $e');
+        try {
+          await FirebaseAuth.instance.setPersistence(Persistence.SESSION);
+        } catch (_) {
+          try {
+            await FirebaseAuth.instance.setPersistence(Persistence.NONE);
+          } catch (_) {}
+        }
+      }
+    }
   } catch (e) {
-    debugPrint('Firebase init info: $e');
+    debugPrint('Firebase init error: $e');
   }
 
-  // 5. Set status bar & navigation bar style (hanya di platform non-web)
+  // 6. Set status bar & navigation bar style (hanya di platform non-web)
   if (!kIsWeb) {
     SystemChrome.setSystemUIOverlayStyle(
       const SystemUiOverlayStyle(

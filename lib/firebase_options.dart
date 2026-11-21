@@ -1,25 +1,32 @@
 // Konfigurasi Firebase PakeAja (mendukung Web, Android, iOS, dan Desktop/macOS)
-// Membaca nilai dari file .env dengan fallback otomatis terenkode aman
+// Membaca nilai dari file .env dengan fallback otomatis string hardcoded
 // agar aplikasi tidak pernah mengalami crash/layar putih di web hosting atau device apa pun.
 
-import 'dart:convert';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class DefaultFirebaseOptions {
-  static String _envOrFallback(String key, String fallbackB64) {
+  static String _normalizeApiKey(String key) {
+    // Memperbaiki kemungkinan salah ketik/OCR pada API Key Firebase:
+    // 'NLtAm6rCYeqZD8nQ2lvJa9pKA' -> 'NltAmGrCYeqZDBnQ2lvJa9pKA'
+    if (key.contains('NLtAm6r') || key.contains('ZD8nQ2lv')) {
+      return 'AIzaSyCH156ZE1NltAmGrCYeqZDBnQ2lvJa9pKA';
+    }
+    return key;
+  }
+
+  static String _envOrFallback(String key, String fallback) {
     try {
       final value = dotenv.env[key]?.trim();
       if (value != null && value.isNotEmpty) {
+        if (key.contains('API_KEY')) {
+          return _normalizeApiKey(value);
+        }
         return value;
       }
     } catch (_) {}
-    try {
-      return utf8.decode(base64.decode(fallbackB64));
-    } catch (_) {
-      return '';
-    }
+    return fallback;
   }
 
   static FirebaseOptions get currentPlatform {
@@ -40,77 +47,77 @@ class DefaultFirebaseOptions {
   static FirebaseOptions get android => FirebaseOptions(
         apiKey: _envOrFallback(
           'FIREBASE_ANDROID_API_KEY',
-          'QUl6YVN5QmJIMXBtUmE2UDZHOEk2Vk9QTlpkZ2J0RGl5Zmp2WjRv',
+          'AIzaSyBbH1pmRa6P6G8I6VOPNZdgbtDiyfjvZ4o',
         ),
         appId: _envOrFallback(
           'FIREBASE_ANDROID_APP_ID',
-          'MTo1NDgwNjUyMTUwOTM6YW5kcm9pZDo5ZmM0NGJiOWIwNGQ5NTNjMTA2ZTNj',
+          '1:548065215093:android:9fc44bb9b04d953c106e3c',
         ),
         messagingSenderId: _envOrFallback(
           'FIREBASE_MESSAGING_SENDER_ID',
-          'NTQ4MDY1MjE1MDkz',
+          '548065215093',
         ),
         projectId: _envOrFallback(
           'FIREBASE_PROJECT_ID',
-          'cGFrZWFqYQ==',
+          'pakeaja',
         ),
         storageBucket: _envOrFallback(
           'FIREBASE_STORAGE_BUCKET',
-          'cGFrZWFqYS5maXJlYmFzZXN0b3JhZ2UuYXBw',
+          'pakeaja.firebasestorage.app',
         ),
       );
 
   static FirebaseOptions get ios => FirebaseOptions(
         apiKey: _envOrFallback(
           'FIREBASE_IOS_API_KEY',
-          'QUl6YVN5RFVCdzRkXzBwQ2VBQXp6NlVWenlTQXNhV045VzU4N08w',
+          'AIzaSyDUBw4d_0pCeAAzz6UVzySAsaWN9W587O0',
         ),
         appId: _envOrFallback(
           'FIREBASE_IOS_APP_ID',
-          'MTo1NDgwNjUyMTUwOTM6aW9zOmViYmFmZGEyYWZjMDQ3N2UxMDZlM2M=',
+          '1:548065215093:ios:ebbafda2afc0477e106e3c',
         ),
         messagingSenderId: _envOrFallback(
           'FIREBASE_MESSAGING_SENDER_ID',
-          'NTQ4MDY1MjE1MDkz',
+          '548065215093',
         ),
         projectId: _envOrFallback(
           'FIREBASE_PROJECT_ID',
-          'cGFrZWFqYQ==',
+          'pakeaja',
         ),
         storageBucket: _envOrFallback(
           'FIREBASE_STORAGE_BUCKET',
-          'cGFrZWFqYS5maXJlYmFzZXN0b3JhZ2UuYXBw',
+          'pakeaja.firebasestorage.app',
         ),
         iosBundleId: _envOrFallback(
           'FIREBASE_IOS_BUNDLE_ID',
-          'Y29tLmV4YW1wbGUucGFrZWFqYQ==',
+          'com.example.pakeaja',
         ),
       );
 
   static FirebaseOptions get web => FirebaseOptions(
         apiKey: _envOrFallback(
           'FIREBASE_WEB_API_KEY',
-          'QUl6YVN5Q0gxNTZaRTFObHRBbUdyQ1llcVpEQm5RMmx2SmE5cEtB',
+          'AIzaSyCH156ZE1NltAmGrCYeqZDBnQ2lvJa9pKA',
         ),
         appId: _envOrFallback(
           'FIREBASE_WEB_APP_ID',
-          'MTo1NDgwNjUyMTUwOTM6d2ViOmE2NDcxNDc1YTY2OTEyMzgxMDZlM2M=',
+          '1:548065215093:web:a6471475a6691238106e3c',
         ),
         messagingSenderId: _envOrFallback(
           'FIREBASE_MESSAGING_SENDER_ID',
-          'NTQ4MDY1MjE1MDkz',
+          '548065215093',
         ),
         projectId: _envOrFallback(
           'FIREBASE_PROJECT_ID',
-          'cGFrZWFqYQ==',
+          'pakeaja',
         ),
         authDomain: _envOrFallback(
           'FIREBASE_WEB_AUTH_DOMAIN',
-          'cGFrZWFqYS5maXJlYmFzZWFwcC5jb20=',
+          'pakeaja.firebaseapp.com',
         ),
         storageBucket: _envOrFallback(
           'FIREBASE_STORAGE_BUCKET',
-          'cGFrZWFqYS5maXJlYmFzZXN0b3JhZ2UuYXBw',
+          'pakeaja.firebasestorage.app',
         ),
       );
 }

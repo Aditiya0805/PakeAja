@@ -21,8 +21,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     final user = ref.watch(userDataProvider).valueOrNull;
     final authUser = ref.watch(authStateProvider).valueOrNull;
     final displayName = ref.watch(effectiveUserNameProvider);
-    final email = (user?.email.isNotEmpty ?? false)
-        ? user!.email
+    final userEmail = user?.email;
+    final email = (userEmail != null && userEmail.isNotEmpty)
+        ? userEmail
         : (authUser?.email ?? '');
     final stats = ref.watch(userStatsProvider);
 
@@ -120,10 +121,12 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   child: CircleAvatar(
                     radius: 30,
                     backgroundColor: Colors.white.withValues(alpha: 0.2),
-                    backgroundImage: user?.photoUrl != null
-                        ? CachedNetworkImageProvider(user!.photoUrl!)
+                    backgroundImage: (user?.photoUrl != null &&
+                            user!.photoUrl!.isNotEmpty)
+                        ? CachedNetworkImageProvider(user.photoUrl!)
                         : null,
-                    child: user?.photoUrl == null
+                    child: (user?.photoUrl == null ||
+                            user!.photoUrl!.isEmpty)
                         ? const Icon(Icons.person,
                             size: 30, color: Colors.white)
                         : null,

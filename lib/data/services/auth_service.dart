@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -6,6 +8,7 @@ import 'package:google_sign_in/google_sign_in.dart';
 
 import '../../../core/utils/auth_result.dart';
 import '../../../core/utils/error_handler.dart';
+import '../../../firebase_options.dart';
 
 class AuthService {
   FirebaseAuth? _authInstance;
@@ -20,23 +23,70 @@ class AuthService {
         _firestoreInstance = firestore,
         _googleSignIn = googleSignIn;
 
+  Future<void> _ensureInitialized() async {
+    if (Firebase.apps.isEmpty) {
+      try {
+        await Firebase.initializeApp(
+          options: DefaultFirebaseOptions.currentPlatform,
+        );
+        if (kIsWeb) {
+          FirebaseFirestore.instance.settings = const Settings(
+            persistenceEnabled: false,
+            webExperimentalForceLongPolling: true,
+          );
+          try {
+            await FirebaseAuth.instance.setPersistence(Persistence.LOCAL);
+          } catch (_) {
+            try {
+              await FirebaseAuth.instance.setPersistence(Persistence.SESSION);
+            } catch (_) {
+              try {
+                await FirebaseAuth.instance.setPersistence(Persistence.NONE);
+              } catch (_) {}
+            }
+          }
+        }
+      } catch (e) {
+        debugPrint('AuthService lazy init Firebase info: $e');
+      }
+    }
+  }
+
   FirebaseAuth get _auth {
     if (_authInstance != null) return _authInstance!;
-    try {
-      if (Firebase.apps.isNotEmpty) {
+    if (Firebase.apps.isNotEmpty) {
+      try {
         return _authInstance = FirebaseAuth.instance;
+      } catch (_) {
+        try {
+          return _authInstance = FirebaseAuth.instanceFor(app: Firebase.app());
+        } catch (_) {}
       }
-    } catch (_) {}
+    }
     throw StateError('Firebase Auth belum terinisialisasi.');
   }
 
   FirebaseFirestore get _firestore {
     if (_firestoreInstance != null) return _firestoreInstance!;
-    try {
-      if (Firebase.apps.isNotEmpty) {
-        return _firestoreInstance = FirebaseFirestore.instance;
+    if (Firebase.apps.isNotEmpty) {
+      try {
+        final fs = FirebaseFirestore.instance;
+        if (kIsWeb) {
+          try {
+            fs.settings = const Settings(
+              persistenceEnabled: false,
+              webExperimentalForceLongPolling: true,
+            );
+          } catch (_) {}
+        }
+        return _firestoreInstance = fs;
+      } catch (_) {
+        try {
+          return _firestoreInstance =
+              FirebaseFirestore.instanceFor(app: Firebase.app());
+        } catch (_) {}
       }
-    } catch (_) {}
+    }
     throw StateError('Cloud Firestore belum terinisialisasi.');
   }
 
@@ -73,33 +123,61 @@ class AuthService {
     required String email,
     required String password,
   }) async {
+    await _ensureInitialized();
+    User? user;
     try {
-      final credential = await _auth.createUserWithEmailAndPassword(
-        email: email.trim(),
-        password: password,
-      );
+      final credential = await _auth
+          .createUserWithEmailAndPassword(
+            email: email.trim(),
+            password: password,
+          )
+          .timeout(
+            const Duration(seconds: 15),
+            onTimeout: () => throw TimeoutException(
+              'Proses pendaftaran melebihi batas waktu (timeout). Silakan periksa koneksi internet Anda.',
+            ),
+          );
 
-      final user = credential.user;
+      user = credential.user;
       if (user == null) {
         return AuthResult.fail('Gagal membuat akun.');
       }
-
-      await user.updateDisplayName(name.trim());
-      await user.reload();
-
-      await _firestore.collection('users').doc(user.uid).set({
-        'name': name.trim(),
-        'email': email.trim(),
-        'photoUrl': null,
-        'createdAt': FieldValue.serverTimestamp(),
-      });
-
-      return AuthResult.ok(user);
+    } on TimeoutException catch (e) {
+      return AuthResult.fail(e.message ?? 'Waktu koneksi habis. Silakan coba lagi.');
     } on FirebaseAuthException catch (e) {
       return AuthResult.fail(ErrorHandler.handle(e));
     } on Exception catch (e) {
       return AuthResult.fail(ErrorHandler.handle(e));
+    } catch (e) {
+      return AuthResult.fail('Terjadi kesalahan pendaftaran: $e');
     }
+
+    // === TAHAP 2: PROFIL & FIRESTORE TERISOLASI (TIDAK MEMBATALKAN HASIL REGISTER) ===
+    try {
+      await user
+          .updateDisplayName(name.trim())
+          .timeout(const Duration(seconds: 4));
+      await user.reload().timeout(const Duration(seconds: 4));
+    } catch (e) {
+      debugPrint('Update display name tertunda: $e');
+    }
+
+    try {
+      await _firestore
+          .collection('users')
+          .doc(user.uid)
+          .set({
+            'name': name.trim(),
+            'email': email.trim(),
+            'photoUrl': null,
+            'createdAt': FieldValue.serverTimestamp(),
+          })
+          .timeout(const Duration(seconds: 6));
+    } catch (e) {
+      debugPrint('Penulisan data pengguna ke Firestore dilewati/tertunda: $e');
+    }
+
+    return AuthResult.ok(user);
   }
 
   // ==================== LOGIN ====================
@@ -108,54 +186,74 @@ class AuthService {
     required String password,
     String? name,
   }) async {
+    await _ensureInitialized();
+    User? user;
     try {
-      final credential = await _auth.signInWithEmailAndPassword(
-        email: email.trim(),
-        password: password,
-      );
+      final credential = await _auth
+          .signInWithEmailAndPassword(
+            email: email.trim(),
+            password: password,
+          )
+          .timeout(
+            const Duration(seconds: 15),
+            onTimeout: () => throw TimeoutException(
+              'Proses masuk melebihi batas waktu (timeout). Silakan periksa koneksi internet Anda.',
+            ),
+          );
 
-      final user = credential.user;
+      user = credential.user;
       if (user == null) {
         return AuthResult.fail('Gagal masuk.');
       }
-
-      if (name != null && name.trim().isNotEmpty) {
-        final trimmed = name.trim();
-        if (user.displayName != trimmed) {
-          try {
-            await user.updateDisplayName(trimmed);
-            await user.reload();
-          } catch (_) {}
-        }
-        try {
-          final userDoc = _firestore.collection('users').doc(user.uid);
-          final snap = await userDoc.get();
-          if (snap.exists) {
-            await userDoc.update({
-              'name': trimmed,
-              'updatedAt': FieldValue.serverTimestamp(),
-            });
-          } else {
-            await userDoc.set({
-              'name': trimmed,
-              'email': user.email ?? email.trim(),
-              'photoUrl': user.photoURL,
-              'createdAt': FieldValue.serverTimestamp(),
-            });
-          }
-        } catch (_) {}
-      }
-
-      return AuthResult.ok(user);
+    } on TimeoutException catch (e) {
+      return AuthResult.fail(e.message ?? 'Waktu koneksi habis. Silakan coba lagi.');
     } on FirebaseAuthException catch (e) {
       return AuthResult.fail(ErrorHandler.handle(e));
     } on Exception catch (e) {
       return AuthResult.fail(ErrorHandler.handle(e));
+    } catch (e) {
+      return AuthResult.fail('Terjadi kesalahan login: $e');
     }
+
+    // === TAHAP 2: PROFIL & FIRESTORE TERISOLASI (TIDAK MEMBATALKAN HASIL LOGIN) ===
+    if (name != null && name.trim().isNotEmpty) {
+      final trimmed = name.trim();
+      if (user.displayName != trimmed) {
+        try {
+          await user
+              .updateDisplayName(trimmed)
+              .timeout(const Duration(seconds: 4));
+          await user.reload().timeout(const Duration(seconds: 4));
+        } catch (_) {}
+      }
+      try {
+        final userDoc = _firestore.collection('users').doc(user.uid);
+        final snap = await userDoc.get().timeout(const Duration(seconds: 6));
+        if (snap.exists) {
+          await userDoc.update({
+            'name': trimmed,
+            'updatedAt': FieldValue.serverTimestamp(),
+          }).timeout(const Duration(seconds: 6));
+        } else {
+          await userDoc.set({
+            'name': trimmed,
+            'email': user.email ?? email.trim(),
+            'photoUrl': user.photoURL,
+            'createdAt': FieldValue.serverTimestamp(),
+          }).timeout(const Duration(seconds: 6));
+        }
+      } catch (e) {
+        debugPrint('Sinkronisasi Firestore saat login tertunda: $e');
+      }
+    }
+
+    return AuthResult.ok(user);
   }
 
   // ==================== GOOGLE SIGN-IN ====================
   Future<AuthResult> signInWithGoogle({String? name}) async {
+    await _ensureInitialized();
+    User? user;
     try {
       UserCredential userCredential;
 
@@ -163,44 +261,82 @@ class AuthService {
         final GoogleAuthProvider googleProvider = GoogleAuthProvider();
         googleProvider.addScope('email');
         googleProvider.addScope('profile');
-        userCredential = await _auth.signInWithPopup(googleProvider);
+        userCredential = await _auth
+            .signInWithPopup(googleProvider)
+            .timeout(
+              const Duration(seconds: 60),
+              onTimeout: () => throw TimeoutException(
+                'Waktu masuk dengan Google melebihi batas waktu.',
+              ),
+            );
       } else {
         final GoogleSignInAccount? googleUser =
-            await _getGoogleSignIn().signIn();
+            await _getGoogleSignIn().signIn().timeout(
+                  const Duration(seconds: 60),
+                  onTimeout: () => throw TimeoutException(
+                    'Waktu pemilihan akun Google habis.',
+                  ),
+                );
 
         if (googleUser == null) {
           return AuthResult.fail('Login Google dibatalkan.');
         }
 
         final GoogleSignInAuthentication googleAuth =
-            await googleUser.authentication;
+            await googleUser.authentication.timeout(
+              const Duration(seconds: 15),
+              onTimeout: () => throw TimeoutException(
+                'Waktu autentikasi Google habis.',
+              ),
+            );
 
         final OAuthCredential credential = GoogleAuthProvider.credential(
           accessToken: googleAuth.accessToken,
           idToken: googleAuth.idToken,
         );
 
-        userCredential = await _auth.signInWithCredential(credential);
+        userCredential = await _auth
+            .signInWithCredential(credential)
+            .timeout(
+              const Duration(seconds: 15),
+              onTimeout: () => throw TimeoutException(
+                'Waktu verifikasi akun Google habis.',
+              ),
+            );
       }
 
-      final user = userCredential.user;
+      user = userCredential.user;
       if (user == null) {
         return AuthResult.fail('Gagal masuk dengan Google.');
       }
+    } on TimeoutException catch (e) {
+      return AuthResult.fail(e.message ?? 'Waktu koneksi habis. Silakan coba lagi.');
+    } on FirebaseAuthException catch (e) {
+      return AuthResult.fail(ErrorHandler.handle(e));
+    } on Exception catch (e) {
+      return AuthResult.fail(ErrorHandler.handle(e));
+    } catch (e) {
+      return AuthResult.fail('Terjadi kesalahan masuk dengan Google: $e');
+    }
 
-      final effectiveName = (name != null && name.trim().isNotEmpty)
-          ? name.trim()
-          : (user.displayName ?? 'Pengguna');
+    // === TAHAP 2: PROFIL & FIRESTORE TERISOLASI (TIDAK MEMBATALKAN HASIL SIGN IN GOOGLE) ===
+    final effectiveName = (name != null && name.trim().isNotEmpty)
+        ? name.trim()
+        : (user.displayName ?? 'Pengguna');
 
-      if (user.displayName != effectiveName) {
-        try {
-          await user.updateDisplayName(effectiveName);
-          await user.reload();
-        } catch (_) {}
-      }
+    if (user.displayName != effectiveName) {
+      try {
+        await user
+            .updateDisplayName(effectiveName)
+            .timeout(const Duration(seconds: 4));
+        await user.reload().timeout(const Duration(seconds: 4));
+      } catch (_) {}
+    }
 
+    try {
       final userDoc = _firestore.collection('users').doc(user.uid);
-      final docSnapshot = await userDoc.get();
+      final docSnapshot =
+          await userDoc.get().timeout(const Duration(seconds: 6));
 
       if (!docSnapshot.exists) {
         await userDoc.set({
@@ -208,31 +344,41 @@ class AuthService {
           'email': user.email,
           'photoUrl': user.photoURL,
           'createdAt': FieldValue.serverTimestamp(),
-        });
+        }).timeout(const Duration(seconds: 6));
       } else if (name != null && name.trim().isNotEmpty) {
         await userDoc.update({
           'name': effectiveName,
           'updatedAt': FieldValue.serverTimestamp(),
-        });
+        }).timeout(const Duration(seconds: 6));
       }
-
-      return AuthResult.ok(user);
-    } on FirebaseAuthException catch (e) {
-      return AuthResult.fail(ErrorHandler.handle(e));
-    } on Exception catch (e) {
-      return AuthResult.fail(ErrorHandler.handle(e));
+    } catch (e) {
+      debugPrint('Sinkronisasi profil Firestore saat login Google tertunda: $e');
     }
+
+    return AuthResult.ok(user);
   }
 
   // ==================== RESET PASSWORD ====================
   Future<AuthResult> sendPasswordResetEmail(String email) async {
+    await _ensureInitialized();
     try {
-      await _auth.sendPasswordResetEmail(email: email.trim());
+      await _auth
+          .sendPasswordResetEmail(email: email.trim())
+          .timeout(
+            const Duration(seconds: 15),
+            onTimeout: () => throw TimeoutException(
+              'Waktu pengiriman email reset password habis. Periksa koneksi internet Anda.',
+            ),
+          );
       return AuthResult.ok(null);
+    } on TimeoutException catch (e) {
+      return AuthResult.fail(e.message ?? 'Waktu koneksi habis.');
     } on FirebaseAuthException catch (e) {
       return AuthResult.fail(ErrorHandler.handle(e));
     } on Exception catch (e) {
       return AuthResult.fail(ErrorHandler.handle(e));
+    } catch (e) {
+      return AuthResult.fail('Gagal mengirim email reset password: $e');
     }
   }
 
@@ -241,13 +387,17 @@ class AuthService {
     try {
       if (!kIsWeb) {
         try {
-          await _getGoogleSignIn().signOut();
+          await _getGoogleSignIn()
+              .signOut()
+              .timeout(const Duration(seconds: 5));
         } catch (_) {}
       }
-      await _auth.signOut();
+      await _auth.signOut().timeout(const Duration(seconds: 6));
       return AuthResult.ok(null);
     } on Exception catch (e) {
       return AuthResult.fail(ErrorHandler.handle(e));
+    } catch (e) {
+      return AuthResult.fail('Gagal logout: $e');
     }
   }
 
@@ -268,50 +418,71 @@ class AuthService {
           email: email,
           password: password,
         );
-        await user.reauthenticateWithCredential(cred);
+        await user
+            .reauthenticateWithCredential(cred)
+            .timeout(const Duration(seconds: 15));
       } else {
         if (!kIsWeb) {
-          final googleUser = await _getGoogleSignIn().signIn();
+          final googleUser = await _getGoogleSignIn().signIn().timeout(
+                const Duration(seconds: 60),
+              );
           if (googleUser == null) {
             return AuthResult.fail('Re-autentikasi Google dibatalkan.');
           }
-          final googleAuth = await googleUser.authentication;
+          final googleAuth = await googleUser.authentication.timeout(
+            const Duration(seconds: 15),
+          );
           final cred = GoogleAuthProvider.credential(
             accessToken: googleAuth.accessToken,
             idToken: googleAuth.idToken,
           );
-          await user.reauthenticateWithCredential(cred);
+          await user
+              .reauthenticateWithCredential(cred)
+              .timeout(const Duration(seconds: 15));
         }
       }
 
       final uid = user.uid;
 
-      final clothes = await _firestore
-          .collection('users')
-          .doc(uid)
-          .collection('clothes')
-          .get();
-      for (final doc in clothes.docs) {
-        await doc.reference.delete();
+      try {
+        final clothes = await _firestore
+            .collection('users')
+            .doc(uid)
+            .collection('clothes')
+            .get()
+            .timeout(const Duration(seconds: 8));
+        for (final doc in clothes.docs) {
+          await doc.reference.delete().timeout(const Duration(seconds: 3));
+        }
+
+        final outfits = await _firestore
+            .collection('users')
+            .doc(uid)
+            .collection('outfits')
+            .get()
+            .timeout(const Duration(seconds: 8));
+        for (final doc in outfits.docs) {
+          await doc.reference.delete().timeout(const Duration(seconds: 3));
+        }
+
+        await _firestore
+            .collection('users')
+            .doc(uid)
+            .delete()
+            .timeout(const Duration(seconds: 8));
+      } catch (e) {
+        debugPrint('Pembersihan dokumen Firestore sebelum hapus akun tertunda: $e');
       }
 
-      final outfits = await _firestore
-          .collection('users')
-          .doc(uid)
-          .collection('outfits')
-          .get();
-      for (final doc in outfits.docs) {
-        await doc.reference.delete();
-      }
-
-      await _firestore.collection('users').doc(uid).delete();
-      await user.delete();
+      await user.delete().timeout(const Duration(seconds: 15));
 
       return AuthResult.ok(null);
     } on FirebaseAuthException catch (e) {
       return AuthResult.fail(ErrorHandler.handle(e));
     } on Exception catch (e) {
       return AuthResult.fail(ErrorHandler.handle(e));
+    } catch (e) {
+      return AuthResult.fail('Gagal menghapus akun: $e');
     }
   }
 
@@ -322,12 +493,16 @@ class AuthService {
       if (user == null) return AuthResult.fail('Pengguna belum masuk.');
 
       if (name != null) {
-        await user.updateDisplayName(name.trim());
+        await user
+            .updateDisplayName(name.trim())
+            .timeout(const Duration(seconds: 6));
       }
       if (photoUrl != null) {
-        await user.updatePhotoURL(photoUrl);
+        await user
+            .updatePhotoURL(photoUrl)
+            .timeout(const Duration(seconds: 6));
       }
-      await user.reload();
+      await user.reload().timeout(const Duration(seconds: 6));
 
       final data = <String, dynamic>{};
       if (name != null) data['name'] = name.trim();
@@ -336,13 +511,13 @@ class AuthService {
       if (data.isNotEmpty) {
         data['updatedAt'] = FieldValue.serverTimestamp();
         final userDoc = _firestore.collection('users').doc(user.uid);
-        final snap = await userDoc.get();
+        final snap = await userDoc.get().timeout(const Duration(seconds: 6));
         if (snap.exists) {
-          await userDoc.update(data);
+          await userDoc.update(data).timeout(const Duration(seconds: 6));
         } else {
           data['email'] = user.email;
           data['createdAt'] = FieldValue.serverTimestamp();
-          await userDoc.set(data);
+          await userDoc.set(data).timeout(const Duration(seconds: 6));
         }
       }
 
@@ -351,6 +526,8 @@ class AuthService {
       return AuthResult.fail(ErrorHandler.handle(e));
     } on Exception catch (e) {
       return AuthResult.fail(ErrorHandler.handle(e));
+    } catch (e) {
+      return AuthResult.fail('Gagal memperbarui profil: $e');
     }
   }
 }

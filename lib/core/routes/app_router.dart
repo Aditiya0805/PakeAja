@@ -96,6 +96,10 @@ final routerProvider = Provider<GoRouter>((ref) {
         name: 'main',
         builder: (context, state) => const MainScreen(),
       ),
+      GoRoute(
+        path: '/home',
+        redirect: (context, state) => '/',
+      ),
 
       // Wardrobe
       GoRoute(
@@ -110,13 +114,13 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '/cloth/:id',
         name: 'cloth-detail',
         builder: (context, state) =>
-            ClothDetailScreen(clothId: state.pathParameters['id']!),
+            ClothDetailScreen(clothId: state.pathParameters['id'] ?? ''),
       ),
       GoRoute(
         path: '/cloth/:id/edit',
         name: 'edit-cloth',
         builder: (context, state) =>
-            EditClothScreen(clothId: state.pathParameters['id']!),
+            EditClothScreen(clothId: state.pathParameters['id'] ?? ''),
       ),
 
       // Recommendation

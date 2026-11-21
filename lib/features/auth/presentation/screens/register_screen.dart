@@ -30,15 +30,24 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   }
 
   Future<void> _register() async {
-    if (!_formKey.currentState!.validate()) return;
+    final form = _formKey.currentState;
+    if (form == null || !form.validate()) return;
 
-    final success = await ref.read(authControllerProvider.notifier).register(
-          name: _nameController.text,
-          email: _emailController.text,
-          password: _passwordController.text,
+    try {
+      final success = await ref.read(authControllerProvider.notifier).register(
+            name: _nameController.text,
+            email: _emailController.text,
+            password: _passwordController.text,
+          );
+      if (success && mounted) {
+        context.go('/');
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Terjadi kesalahan pendaftaran: $e')),
         );
-    if (success && mounted) {
-      context.go('/');
+      }
     }
   }
 

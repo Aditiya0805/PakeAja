@@ -17,6 +17,9 @@ class ErrorHandler {
   static String handle(dynamic error) {
     if (error is AppException) return error.message;
 
+    if (error is FirebaseAuthException) return _handleAuthError(error);
+    if (error is FirebaseException) return _handleFirebaseError(error);
+
     final msg = error?.toString() ?? '';
     if (msg.contains('firestore.googleapis.com') ||
         (msg.contains('PERMISSION_DENIED') && msg.contains('Cloud Firestore API'))) {
@@ -24,17 +27,11 @@ class ErrorHandler {
     }
 
     if (error is TimeoutException || msg.contains('timeout') || msg.contains('TimeoutException')) {
-      return 'Koneksi ke Firebase timeout. Periksa internet atau pastikan Firestore Database sudah dibuat di Firebase Console.';
+      return 'Koneksi ke Firebase timeout. Periksa internet atau muat ulang halaman.';
     }
 
-    if (error is FirebaseAuthException) return _handleAuthError(error);
-    if (error is FirebaseException) return _handleFirebaseError(error);
-
-    // Network / connection errors
-    if (msg.contains('network') ||
-        msg.contains('connection') ||
-        msg.contains('SocketException') ||
-        msg.contains('no internet')) {
+    // Network / connection errors - khusus jika benar-benar SocketException atau lookup gagal
+    if (msg.contains('SocketException') || msg.contains('Failed host lookup')) {
       return 'Koneksi internet tidak tersedia. Periksa jaringan kamu.';
     }
 
@@ -46,6 +43,9 @@ class ErrorHandler {
     if (kDebugMode) {
       debugPrint('Unhandled error: $error');
     }
+    if (msg.isNotEmpty && !msg.startsWith('Instance of')) {
+      return msg;
+    }
     return 'Terjadi kesalahan. Silakan coba lagi.';
   }
 
@@ -54,9 +54,10 @@ class ErrorHandler {
       case 'user-not-found':
         return 'Akun tidak ditemukan. Cek email kamu.';
       case 'wrong-password':
-        return 'Password salah. Coba lagi.';
+      case 'invalid-credential':
+        return 'Email atau password salah. Silakan periksa kembali.';
       case 'invalid-email':
-        return 'Email tidak valid.';
+        return 'Format email tidak valid.';
       case 'email-already-in-use':
         return 'Email sudah terdaftar. Silakan login.';
       case 'weak-password':
@@ -66,13 +67,21 @@ class ErrorHandler {
       case 'too-many-requests':
         return 'Terlalu banyak percobaan. Coba beberapa saat lagi.';
       case 'operation-not-allowed':
-        return 'Metode login tidak diizinkan.';
+        return 'Metode login tidak diizinkan di Firebase Console.';
       case 'requires-recent-login':
         return 'Silakan login kembali untuk melanjutkan.';
       case 'credential-already-in-use':
         return 'Akun Google sudah terdaftar dengan cara lain.';
+      case 'network-request-failed':
+        return 'Gagal terhubung ke server autentikasi. Pastikan koneksi internet aktif.';
+      case 'popup-closed-by-user':
+      case 'cancelled-popup-request':
+        return 'Login Google dibatalkan.';
       default:
-        return 'Gagal masuk. Silakan coba lagi.';
+        if (e.message != null && e.message!.isNotEmpty) {
+          return e.message!;
+        }
+        return 'Gagal autentikasi (${e.code}). Silakan coba lagi.';
     }
   }
 

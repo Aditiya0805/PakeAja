@@ -21,17 +21,29 @@ class UserRepository {
   }
 
   Stream<UserModel?> watchUser(String uid) {
-    return _db.collection('users').doc(uid).snapshots().map((doc) =>
-        doc.exists ? UserModel.fromFirestore(doc) : null);
+    try {
+      return _db.collection('users').doc(uid).snapshots().map((doc) {
+        if (!doc.exists) return null;
+        final data = doc.data();
+        if (data == null) return null;
+        return UserModel.fromFirestore(doc);
+      });
+    } catch (_) {
+      return Stream.value(null);
+    }
   }
 
   Future<UserModel?> getUser(String uid) async {
     try {
       final doc = await _db.collection('users').doc(uid).get();
       if (!doc.exists) return null;
+      final data = doc.data();
+      if (data == null) return null;
       return UserModel.fromFirestore(doc);
     } on Exception catch (e) {
       throw Exception(ErrorHandler.handle(e));
+    } catch (_) {
+      return null;
     }
   }
 
