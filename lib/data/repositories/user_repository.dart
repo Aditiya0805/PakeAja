@@ -1,13 +1,24 @@
 
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_core/firebase_core.dart';
 
 import 'package:pakeaja/core/utils/error_handler.dart';
 import 'package:pakeaja/data/models/user_model.dart';
 
 class UserRepository {
-  final FirebaseFirestore _db;
+  FirebaseFirestore? _dbInstance;
 
-  UserRepository({FirebaseFirestore? db}) : _db = db ?? FirebaseFirestore.instance;
+  UserRepository({FirebaseFirestore? db}) : _dbInstance = db;
+
+  FirebaseFirestore get _db {
+    if (_dbInstance != null) return _dbInstance!;
+    try {
+      if (Firebase.apps.isNotEmpty) {
+        return _dbInstance = FirebaseFirestore.instance;
+      }
+    } catch (_) {}
+    throw StateError('Firebase Firestore belum siap.');
+  }
 
   Stream<UserModel?> watchUser(String uid) {
     return _db.collection('users').doc(uid).snapshots().map((doc) =>
@@ -74,7 +85,7 @@ class ConnectivityService {
           .limit(1)
           .get();
       return result.size >= 0;
-    } on Exception catch (_) {
+    } catch (_) {
       return false;
     }
   }

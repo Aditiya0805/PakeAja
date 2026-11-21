@@ -98,7 +98,7 @@ final connectivityProvider = StreamProvider<bool>((ref) async* {
           .limit(1)
           .get();
       return true;
-    } on Exception catch (_) {
+    } catch (_) {
       return false;
     }
   });

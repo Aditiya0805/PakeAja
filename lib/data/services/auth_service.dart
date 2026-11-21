@@ -1,23 +1,44 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/foundation.dart';
 import 'package:google_sign_in/google_sign_in.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../../../core/utils/auth_result.dart';
 import '../../../core/utils/error_handler.dart';
 
 class AuthService {
-  final FirebaseAuth _auth;
-  final FirebaseFirestore _firestore;
+  FirebaseAuth? _authInstance;
+  FirebaseFirestore? _firestoreInstance;
   GoogleSignIn? _googleSignIn;
 
   AuthService({
     FirebaseAuth? auth,
     FirebaseFirestore? firestore,
     GoogleSignIn? googleSignIn,
-  })  : _auth = auth ?? FirebaseAuth.instance,
-        _firestore = firestore ?? FirebaseFirestore.instance,
+  })  : _authInstance = auth,
+        _firestoreInstance = firestore,
         _googleSignIn = googleSignIn;
+
+  FirebaseAuth get _auth {
+    if (_authInstance != null) return _authInstance!;
+    try {
+      if (Firebase.apps.isNotEmpty) {
+        return _authInstance = FirebaseAuth.instance;
+      }
+    } catch (_) {}
+    throw StateError('Firebase Auth belum terinisialisasi.');
+  }
+
+  FirebaseFirestore get _firestore {
+    if (_firestoreInstance != null) return _firestoreInstance!;
+    try {
+      if (Firebase.apps.isNotEmpty) {
+        return _firestoreInstance = FirebaseFirestore.instance;
+      }
+    } catch (_) {}
+    throw StateError('Cloud Firestore belum terinisialisasi.');
+  }
 
   GoogleSignIn _getGoogleSignIn() {
     return _googleSignIn ??= GoogleSignIn(
@@ -25,12 +46,26 @@ class AuthService {
     );
   }
 
-  // Stream user saat ini
-  Stream<User?> get authStateChanges => _auth.authStateChanges();
+  // Stream user saat ini (aman jika Firebase belum siap / di web)
+  Stream<User?> get authStateChanges {
+    try {
+      if (Firebase.apps.isNotEmpty || _authInstance != null) {
+        return _auth.authStateChanges();
+      }
+    } catch (_) {}
+    return Stream.value(null);
+  }
 
-  User? get currentUser => _auth.currentUser;
+  User? get currentUser {
+    try {
+      if (Firebase.apps.isNotEmpty || _authInstance != null) {
+        return _auth.currentUser;
+      }
+    } catch (_) {}
+    return null;
+  }
 
-  String? get currentUid => _auth.currentUser?.uid;
+  String? get currentUid => currentUser?.uid;
 
   // ==================== REGISTER ====================
   Future<AuthResult> register({
@@ -49,18 +84,19 @@ class AuthService {
         return AuthResult.fail('Gagal membuat akun.');
       }
 
-      // Update display name
       await user.updateDisplayName(name.trim());
+      await user.reload();
 
-      // Buat dokumen user di Firestore
       await _firestore.collection('users').doc(user.uid).set({
         'name': name.trim(),
         'email': email.trim(),
-        'photoUrl': user.photoURL,
+        'photoUrl': null,
         'createdAt': FieldValue.serverTimestamp(),
       });
 
       return AuthResult.ok(user);
+    } on FirebaseAuthException catch (e) {
+      return AuthResult.fail(ErrorHandler.handle(e));
     } on Exception catch (e) {
       return AuthResult.fail(ErrorHandler.handle(e));
     }
@@ -77,137 +113,124 @@ class AuthService {
         email: email.trim(),
         password: password,
       );
-      final user = credential.user;
-      final trimmedName = name?.trim() ?? '';
 
-      if (user != null) {
-        if (trimmedName.isNotEmpty) {
-          await _syncUserName(user, trimmedName);
-        } else {
-          await _ensureUserDocExists(user);
+      final user = credential.user;
+      if (user == null) {
+        return AuthResult.fail('Gagal masuk.');
+      }
+
+      if (name != null && name.trim().isNotEmpty) {
+        final trimmed = name.trim();
+        if (user.displayName != trimmed) {
+          try {
+            await user.updateDisplayName(trimmed);
+            await user.reload();
+          } catch (_) {}
         }
+        try {
+          final userDoc = _firestore.collection('users').doc(user.uid);
+          final snap = await userDoc.get();
+          if (snap.exists) {
+            await userDoc.update({
+              'name': trimmed,
+              'updatedAt': FieldValue.serverTimestamp(),
+            });
+          } else {
+            await userDoc.set({
+              'name': trimmed,
+              'email': user.email ?? email.trim(),
+              'photoUrl': user.photoURL,
+              'createdAt': FieldValue.serverTimestamp(),
+            });
+          }
+        } catch (_) {}
       }
 
       return AuthResult.ok(user);
+    } on FirebaseAuthException catch (e) {
+      return AuthResult.fail(ErrorHandler.handle(e));
     } on Exception catch (e) {
       return AuthResult.fail(ErrorHandler.handle(e));
-    }
-  }
-
-  /// Sinkronkan nama yang diinputkan user ke Firebase Auth & dokumen Firestore.
-  Future<void> _syncUserName(User user, String name) async {
-    try {
-      await user.updateDisplayName(name);
-    } catch (_) {
-      // Lanjutkan ke Firestore meskipun updateDisplayName gagal
-    }
-    try {
-      final userDoc = _firestore.collection('users').doc(user.uid);
-      final doc = await userDoc.get();
-      if (!doc.exists) {
-        await userDoc.set({
-          'name': name,
-          'email': user.email ?? '',
-          'photoUrl': user.photoURL,
-          'createdAt': FieldValue.serverTimestamp(),
-        });
-      } else {
-        await userDoc.set({'name': name}, SetOptions(merge: true));
-      }
-    } catch (_) {
-      // Jangan blokir proses login jika penulisan ke Firestore tertunda/offline
-    }
-  }
-
-  /// Pastikan dokumen user ada di Firestore saat login tanpa input nama.
-  Future<void> _ensureUserDocExists(User user) async {
-    try {
-      final userDoc = _firestore.collection('users').doc(user.uid);
-      final doc = await userDoc.get();
-      if (!doc.exists) {
-        final fallbackName = (user.displayName?.trim().isNotEmpty ?? false)
-            ? user.displayName!.trim()
-            : (user.email?.split('@').first ?? 'Pengguna');
-        await userDoc.set({
-          'name': fallbackName,
-          'email': user.email ?? '',
-          'photoUrl': user.photoURL,
-          'createdAt': FieldValue.serverTimestamp(),
-        });
-      }
-    } catch (_) {
-      // Abaikan agar tidak memblokir login
     }
   }
 
   // ==================== GOOGLE SIGN-IN ====================
   Future<AuthResult> signInWithGoogle({String? name}) async {
-    if (kIsWeb) {
-      return AuthResult.fail(
-        'Login Google belum didukung di versi web. Silakan daftar/login dengan email dan password, atau gunakan aplikasi Android.',
-      );
-    }
     try {
-      final googleUser = await _getGoogleSignIn().signIn();
-      if (googleUser == null) {
-        return AuthResult.fail('Login Google dibatalkan.');
+      UserCredential userCredential;
+
+      if (kIsWeb) {
+        final GoogleAuthProvider googleProvider = GoogleAuthProvider();
+        googleProvider.addScope('email');
+        googleProvider.addScope('profile');
+        userCredential = await _auth.signInWithPopup(googleProvider);
+      } else {
+        final GoogleSignInAccount? googleUser =
+            await _getGoogleSignIn().signIn();
+
+        if (googleUser == null) {
+          return AuthResult.fail('Login Google dibatalkan.');
+        }
+
+        final GoogleSignInAuthentication googleAuth =
+            await googleUser.authentication;
+
+        final OAuthCredential credential = GoogleAuthProvider.credential(
+          accessToken: googleAuth.accessToken,
+          idToken: googleAuth.idToken,
+        );
+
+        userCredential = await _auth.signInWithCredential(credential);
       }
 
-      final googleAuth = await googleUser.authentication;
-      final credential = GoogleAuthProvider.credential(
-        accessToken: googleAuth.accessToken,
-        idToken: googleAuth.idToken,
-      );
-
-      final userCredential = await _auth.signInWithCredential(credential);
       final user = userCredential.user;
       if (user == null) {
-        return AuthResult.fail('Gagal login dengan Google.');
+        return AuthResult.fail('Gagal masuk dengan Google.');
       }
 
-      final trimmedName = name?.trim() ?? '';
-      if (trimmedName.isNotEmpty) {
+      final effectiveName = (name != null && name.trim().isNotEmpty)
+          ? name.trim()
+          : (user.displayName ?? 'Pengguna');
+
+      if (user.displayName != effectiveName) {
         try {
-          await user.updateDisplayName(trimmedName);
+          await user.updateDisplayName(effectiveName);
+          await user.reload();
         } catch (_) {}
       }
 
-      // Buat/update dokumen user
       final userDoc = _firestore.collection('users').doc(user.uid);
-      final doc = await userDoc.get();
-      if (!doc.exists) {
+      final docSnapshot = await userDoc.get();
+
+      if (!docSnapshot.exists) {
         await userDoc.set({
-          'name': trimmedName.isNotEmpty
-              ? trimmedName
-              : (user.displayName ?? 'Pengguna'),
-          'email': user.email ?? '',
+          'name': effectiveName,
+          'email': user.email,
           'photoUrl': user.photoURL,
           'createdAt': FieldValue.serverTimestamp(),
         });
-      } else {
-        final existingName = (doc.data()?['name'] as String?)?.trim() ?? '';
-        final resolvedName = trimmedName.isNotEmpty
-            ? trimmedName
-            : (existingName.isNotEmpty
-                ? existingName
-                : (user.displayName ?? 'Pengguna'));
-        await userDoc.set({
-          'photoUrl': user.photoURL,
-          'name': resolvedName,
-        }, SetOptions(merge: true));
+      } else if (name != null && name.trim().isNotEmpty) {
+        await userDoc.update({
+          'name': effectiveName,
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
       }
 
       return AuthResult.ok(user);
+    } on FirebaseAuthException catch (e) {
+      return AuthResult.fail(ErrorHandler.handle(e));
     } on Exception catch (e) {
       return AuthResult.fail(ErrorHandler.handle(e));
     }
   }
 
-  // ==================== FORGOT PASSWORD ====================
+  // ==================== RESET PASSWORD ====================
   Future<AuthResult> sendPasswordResetEmail(String email) async {
     try {
       await _auth.sendPasswordResetEmail(email: email.trim());
       return AuthResult.ok(null);
+    } on FirebaseAuthException catch (e) {
+      return AuthResult.fail(ErrorHandler.handle(e));
     } on Exception catch (e) {
       return AuthResult.fail(ErrorHandler.handle(e));
     }
@@ -217,7 +240,9 @@ class AuthService {
   Future<AuthResult> logout() async {
     try {
       if (!kIsWeb) {
-        await _getGoogleSignIn().signOut();
+        try {
+          await _getGoogleSignIn().signOut();
+        } catch (_) {}
       }
       await _auth.signOut();
       return AuthResult.ok(null);
@@ -226,86 +251,104 @@ class AuthService {
     }
   }
 
-  // ==================== DELETE ACCOUNT ====================
+  // ==================== HAPUS AKUN ====================
   Future<AuthResult> deleteAccount(String password) async {
     try {
       final user = _auth.currentUser;
-      if (user == null) return AuthResult.fail('Kamu belum login.');
+      if (user == null) return AuthResult.fail('Pengguna tidak ditemukan.');
 
-      // Re-authenticate (wajib untuk delete)
-      final cred = EmailAuthProvider.credential(
-        email: user.email!,
-        password: password,
-      );
-      await user.reauthenticateWithCredential(cred);
+      final isPasswordUser = user.providerData
+          .any((p) => p.providerId == 'password');
 
-      // Hapus data terkait
-      await _deleteUserData(user.uid);
+      if (isPasswordUser) {
+        final email = user.email;
+        if (email == null) return AuthResult.fail('Email pengguna tidak valid.');
 
-      // Hapus akun
+        final cred = EmailAuthProvider.credential(
+          email: email,
+          password: password,
+        );
+        await user.reauthenticateWithCredential(cred);
+      } else {
+        if (!kIsWeb) {
+          final googleUser = await _getGoogleSignIn().signIn();
+          if (googleUser == null) {
+            return AuthResult.fail('Re-autentikasi Google dibatalkan.');
+          }
+          final googleAuth = await googleUser.authentication;
+          final cred = GoogleAuthProvider.credential(
+            accessToken: googleAuth.accessToken,
+            idToken: googleAuth.idToken,
+          );
+          await user.reauthenticateWithCredential(cred);
+        }
+      }
+
+      final uid = user.uid;
+
+      final clothes = await _firestore
+          .collection('users')
+          .doc(uid)
+          .collection('clothes')
+          .get();
+      for (final doc in clothes.docs) {
+        await doc.reference.delete();
+      }
+
+      final outfits = await _firestore
+          .collection('users')
+          .doc(uid)
+          .collection('outfits')
+          .get();
+      for (final doc in outfits.docs) {
+        await doc.reference.delete();
+      }
+
+      await _firestore.collection('users').doc(uid).delete();
       await user.delete();
+
       return AuthResult.ok(null);
+    } on FirebaseAuthException catch (e) {
+      return AuthResult.fail(ErrorHandler.handle(e));
     } on Exception catch (e) {
       return AuthResult.fail(ErrorHandler.handle(e));
     }
-  }
-
-  Future<void> _deleteUserData(String uid) async {
-    // Hapus subcollections
-    final clothes = await _firestore
-        .collection('users')
-        .doc(uid)
-        .collection('clothes')
-        .get();
-    for (final doc in clothes.docs) {
-      await doc.reference.delete();
-    }
-
-    final outfits = await _firestore
-        .collection('users')
-        .doc(uid)
-        .collection('outfits')
-        .get();
-    for (final doc in outfits.docs) {
-      await doc.reference.delete();
-    }
-
-    // Hapus dokumen user
-    await _firestore.collection('users').doc(uid).delete();
   }
 
   // ==================== UPDATE PROFILE ====================
   Future<AuthResult> updateProfile({String? name, String? photoUrl}) async {
     try {
       final user = _auth.currentUser;
-      if (user == null) return AuthResult.fail('Kamu belum login.');
+      if (user == null) return AuthResult.fail('Pengguna belum masuk.');
 
-      final trimmedName = name?.trim();
-      if (trimmedName != null && trimmedName.isNotEmpty) {
-        await user.updateDisplayName(trimmedName);
+      if (name != null) {
+        await user.updateDisplayName(name.trim());
       }
+      if (photoUrl != null) {
+        await user.updatePhotoURL(photoUrl);
+      }
+      await user.reload();
 
       final data = <String, dynamic>{};
-      if (trimmedName != null && trimmedName.isNotEmpty) {
-        data['name'] = trimmedName;
-      }
+      if (name != null) data['name'] = name.trim();
       if (photoUrl != null) data['photoUrl'] = photoUrl;
 
       if (data.isNotEmpty) {
+        data['updatedAt'] = FieldValue.serverTimestamp();
         final userDoc = _firestore.collection('users').doc(user.uid);
-        final doc = await userDoc.get();
-        if (!doc.exists) {
-          await userDoc.set({
-            'name': trimmedName ?? user.displayName ?? 'Pengguna',
-            'email': user.email ?? '',
-            'photoUrl': photoUrl ?? user.photoURL,
-            'createdAt': FieldValue.serverTimestamp(),
-          });
+        final snap = await userDoc.get();
+        if (snap.exists) {
+          await userDoc.update(data);
         } else {
-          await userDoc.set(data, SetOptions(merge: true));
+          data['email'] = user.email;
+          data['createdAt'] = FieldValue.serverTimestamp();
+          await userDoc.set(data);
         }
       }
-      return AuthResult.ok(user);
+
+      return AuthResult.ok(_auth.currentUser);
+    } on FirebaseAuthException catch (e) {
+      return AuthResult.fail(ErrorHandler.handle(e));
     } on Exception catch (e) {
       return AuthResult.fail(ErrorHandler.handle(e));
     }

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -13,25 +14,52 @@ import 'firebase_options.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await dotenv.load();
-  await initializeDateFormatting('id_ID', null);
 
-  // Inisialisasi Firebase
+  // 1. Tangani uncaught error global agar tidak menyebabkan layar putih beku di device mana pun
+  FlutterError.onError = (details) {
+    FlutterError.presentError(details);
+    debugPrint('FlutterError: ${details.exceptionAsString()}');
+  };
+  PlatformDispatcher.instance.onError = (error, stack) {
+    debugPrint('PlatformDispatcher error: $error');
+    return true; // Mencegah crash fatal pada engine web
+  };
+
+  // 2. Load .env secara aman (fallback otomatis tersedia jika hosting/web memblokir file .env)
+  try {
+    await dotenv.load();
+  } catch (e) {
+    debugPrint('dotenv.load info: Menggunakan konfigurasi environment bawaan ($e)');
+  }
+
+  // 3. Inisialisasi locale bahasa Indonesia secara aman
+  try {
+    await initializeDateFormatting('id_ID', null);
+  } catch (e) {
+    debugPrint('initializeDateFormatting info: $e');
+  }
+
+  // 4. Inisialisasi Firebase secara aman lintas platform dengan timeout agar tidak pernah nge-stuck
   try {
     if (Firebase.apps.isEmpty) {
       await Firebase.initializeApp(
         options: DefaultFirebaseOptions.currentPlatform,
+      ).timeout(
+        const Duration(seconds: 4),
+        onTimeout: () {
+          debugPrint('Firebase init timeout (melanjutkan render UI agar tidak stuck)');
+          if (Firebase.apps.isNotEmpty) {
+            return Firebase.app();
+          }
+          throw TimeoutException('Firebase inisialisasi terlalu lama.');
+        },
       );
     }
   } catch (e) {
-    debugPrint('Firebase init error: $e');
-    // Tangani error duplicate-app saat hot restart atau konfigurasi web belum siap
-    if (!e.toString().contains('duplicate-app') && !kIsWeb) {
-      rethrow;
-    }
+    debugPrint('Firebase init info: $e');
   }
 
-  // Set status bar & navigation bar style (hanya di platform non-web)
+  // 5. Set status bar & navigation bar style (hanya di platform non-web)
   if (!kIsWeb) {
     SystemChrome.setSystemUIOverlayStyle(
       const SystemUiOverlayStyle(

@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_core/firebase_core.dart';
 
 import 'package:pakeaja/core/utils/error_handler.dart';
 import 'package:pakeaja/data/models/cloth_model.dart';
@@ -17,10 +18,19 @@ AppException _wrapRepositoryError(Object error) {
 }
 
 class ClothRepository {
-  final FirebaseFirestore _db;
+  FirebaseFirestore? _dbInstance;
 
-  ClothRepository({FirebaseFirestore? db})
-      : _db = db ?? FirebaseFirestore.instance;
+  ClothRepository({FirebaseFirestore? db}) : _dbInstance = db;
+
+  FirebaseFirestore get _db {
+    if (_dbInstance != null) return _dbInstance!;
+    try {
+      if (Firebase.apps.isNotEmpty) {
+        return _dbInstance = FirebaseFirestore.instance;
+      }
+    } catch (_) {}
+    throw StateError('Firebase Firestore belum siap.');
+  }
 
   CollectionReference _clothesRef(String uid) =>
       _db.collection('users').doc(uid).collection('clothes');
@@ -126,9 +136,19 @@ class ClothRepository {
 }
 
 class OutfitRepository {
-  final FirebaseFirestore _db;
+  FirebaseFirestore? _dbInstance;
 
-  OutfitRepository({FirebaseFirestore? db}) : _db = db ?? FirebaseFirestore.instance;
+  OutfitRepository({FirebaseFirestore? db}) : _dbInstance = db;
+
+  FirebaseFirestore get _db {
+    if (_dbInstance != null) return _dbInstance!;
+    try {
+      if (Firebase.apps.isNotEmpty) {
+        return _dbInstance = FirebaseFirestore.instance;
+      }
+    } catch (_) {}
+    throw StateError('Firebase Firestore belum siap.');
+  }
 
   CollectionReference _outfitsRef(String uid) =>
       _db.collection('users').doc(uid).collection('outfits');
