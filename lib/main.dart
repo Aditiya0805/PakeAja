@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -56,20 +55,6 @@ Future<void> main() async {
         persistenceEnabled: false,
         webExperimentalForceLongPolling: true,
       );
-
-      // b. Atur Persistence FirebaseAuth dengan fallback aman jika WebKit memblokir local storage
-      try {
-        await FirebaseAuth.instance.setPersistence(Persistence.LOCAL);
-      } catch (e) {
-        debugPrint('FirebaseAuth setPersistence LOCAL fallback to SESSION: $e');
-        try {
-          await FirebaseAuth.instance.setPersistence(Persistence.SESSION);
-        } catch (_) {
-          try {
-            await FirebaseAuth.instance.setPersistence(Persistence.NONE);
-          } catch (_) {}
-        }
-      }
     }
   } catch (e) {
     debugPrint('Firebase init error: $e');

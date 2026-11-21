@@ -11,6 +11,7 @@ import 'package:pakeaja/core/theme/app_theme.dart';
 import 'package:pakeaja/core/widgets/cloth_style_selector.dart';
 import 'package:pakeaja/core/widgets/custom_button.dart';
 import 'package:pakeaja/data/models/cloth_model.dart';
+import 'package:pakeaja/data/services/image_service.dart';
 import 'package:pakeaja/features/auth/providers/auth_provider.dart' show authStateProvider;
 import 'package:pakeaja/features/wardrobe/providers/wardrobe_provider.dart';
 
@@ -71,9 +72,12 @@ class _AddClothScreenState extends ConsumerState<AddClothScreen> {
 
   Future<void> _pickImage(bool fromCamera) async {
     final imageService = ref.read(imageServiceProvider);
-    final result = fromCamera
-        ? await imageService.pickFromDeviceCamera(context)
-        : await imageService.pickFromGallery();
+    final ImagePickerResult result;
+    if (fromCamera) {
+      result = await imageService.pickFromDeviceCamera(context);
+    } else {
+      result = await imageService.pickFromGallery();
+    }
 
     if (!mounted) return;
 

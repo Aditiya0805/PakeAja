@@ -30,21 +30,12 @@ class AuthService {
           options: DefaultFirebaseOptions.currentPlatform,
         );
         if (kIsWeb) {
-          FirebaseFirestore.instance.settings = const Settings(
-            persistenceEnabled: false,
-            webExperimentalForceLongPolling: true,
-          );
           try {
-            await FirebaseAuth.instance.setPersistence(Persistence.LOCAL);
-          } catch (_) {
-            try {
-              await FirebaseAuth.instance.setPersistence(Persistence.SESSION);
-            } catch (_) {
-              try {
-                await FirebaseAuth.instance.setPersistence(Persistence.NONE);
-              } catch (_) {}
-            }
-          }
+            FirebaseFirestore.instance.settings = const Settings(
+              persistenceEnabled: false,
+              webExperimentalForceLongPolling: true,
+            );
+          } catch (_) {}
         }
       } catch (e) {
         debugPrint('AuthService lazy init Firebase info: $e');
@@ -128,19 +119,35 @@ class AuthService {
     await _ensureInitialized();
     User? user;
     try {
-      final credential = await _auth
-          .createUserWithEmailAndPassword(
-            email: email.trim(),
-            password: password,
-          )
-          .timeout(
-            const Duration(seconds: 15),
-            onTimeout: () => throw TimeoutException(
-              'Proses pendaftaran melebihi batas waktu (timeout). Silakan periksa koneksi internet Anda.',
-            ),
-          );
+      try {
+        final credential = await _auth
+            .createUserWithEmailAndPassword(
+              email: email.trim(),
+              password: password,
+            )
+            .timeout(
+              const Duration(seconds: 15),
+              onTimeout: () => throw TimeoutException(
+                'Proses pendaftaran melebihi batas waktu (timeout). Silakan periksa koneksi internet Anda.',
+              ),
+            );
+        user = credential.user;
+      } catch (e) {
+        if (kIsWeb) {
+          try {
+            await _auth.setPersistence(Persistence.NONE);
+            final credential = await _auth
+                .createUserWithEmailAndPassword(
+                  email: email.trim(),
+                  password: password,
+                )
+                .timeout(const Duration(seconds: 15));
+            user = credential.user;
+          } catch (_) {}
+        }
+        if (user == null) rethrow;
+      }
 
-      user = credential.user;
       if (user == null) {
         return AuthResult.fail('Gagal membuat akun.');
       }
@@ -151,7 +158,7 @@ class AuthService {
     } on Exception catch (e) {
       return AuthResult.fail(ErrorHandler.handle(e));
     } catch (e) {
-      return AuthResult.fail('Terjadi kesalahan pendaftaran: $e');
+      return AuthResult.fail(ErrorHandler.handle(e));
     }
 
     // === TAHAP 2: PROFIL & FIRESTORE TERISOLASI (TIDAK MEMBATALKAN HASIL REGISTER) ===
@@ -191,19 +198,35 @@ class AuthService {
     await _ensureInitialized();
     User? user;
     try {
-      final credential = await _auth
-          .signInWithEmailAndPassword(
-            email: email.trim(),
-            password: password,
-          )
-          .timeout(
-            const Duration(seconds: 15),
-            onTimeout: () => throw TimeoutException(
-              'Proses masuk melebihi batas waktu (timeout). Silakan periksa koneksi internet Anda.',
-            ),
-          );
+      try {
+        final credential = await _auth
+            .signInWithEmailAndPassword(
+              email: email.trim(),
+              password: password,
+            )
+            .timeout(
+              const Duration(seconds: 15),
+              onTimeout: () => throw TimeoutException(
+                'Proses masuk melebihi batas waktu (timeout). Silakan periksa koneksi internet Anda.',
+              ),
+            );
+        user = credential.user;
+      } catch (e) {
+        if (kIsWeb) {
+          try {
+            await _auth.setPersistence(Persistence.NONE);
+            final credential = await _auth
+                .signInWithEmailAndPassword(
+                  email: email.trim(),
+                  password: password,
+                )
+                .timeout(const Duration(seconds: 15));
+            user = credential.user;
+          } catch (_) {}
+        }
+        if (user == null) rethrow;
+      }
 
-      user = credential.user;
       if (user == null) {
         return AuthResult.fail('Gagal masuk.');
       }
@@ -214,7 +237,7 @@ class AuthService {
     } on Exception catch (e) {
       return AuthResult.fail(ErrorHandler.handle(e));
     } catch (e) {
-      return AuthResult.fail('Terjadi kesalahan login: $e');
+      return AuthResult.fail(ErrorHandler.handle(e));
     }
 
     // === TAHAP 2: PROFIL & FIRESTORE TERISOLASI (TIDAK MEMBATALKAN HASIL LOGIN) ===

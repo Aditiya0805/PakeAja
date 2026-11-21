@@ -35,6 +35,11 @@ class ErrorHandler {
       return 'Koneksi internet tidak tersedia. Periksa jaringan kamu.';
     }
 
+    // Tangani kemungkinan error storage/interop WebKit di browser
+    if (msg.contains('Null check operator') || msg.contains('_NullCheck')) {
+      return 'Koneksi sesi autentikasi terganggu di browser ini. Silakan muat ulang halaman atau coba lagi.';
+    }
+
     if (msg.startsWith('Exception: ')) {
       final clean = msg.substring(11).trim();
       if (clean.isNotEmpty) return clean;

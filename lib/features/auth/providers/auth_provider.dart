@@ -62,11 +62,21 @@ final effectiveUserNameProvider = Provider.autoDispose<String>((ref) {
 
 // ==================== AUTH CONTROLLER ====================
 class AuthController extends AsyncNotifier<void> {
-  late final AuthService _auth;
+  // Gunakan nullable + lazy init agar aman jika build() dipanggil lebih dari sekali
+  // (AsyncNotifier bisa rebuild, dan late final hanya boleh diassign SEKALI)
+  AuthService? _authCache;
+  AuthService get _auth {
+    final cached = _authCache;
+    if (cached != null) return cached;
+    final service = ref.read(authServiceProvider);
+    _authCache = service;
+    return service;
+  }
 
   @override
   FutureOr<void> build() {
-    _auth = ref.read(authServiceProvider);
+    // Reset cache saat rebuild agar ref.read terbaru selalu digunakan
+    _authCache = ref.read(authServiceProvider);
   }
 
   Future<bool> register({
