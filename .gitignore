@@ -29,3 +29,4 @@ Thumbs.db
 
 # Pub
 pubspec.lock  # opsional: commit untuk app, hapus untuk package
+.vercel
