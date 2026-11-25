@@ -1,13 +1,17 @@
 <!DOCTYPE html>
 <html lang="id">
+
 <head>
   <base href="$FLUTTER_BASE_HREF">
 
   <meta charset="UTF-8">
   <meta content="IE=Edge" http-equiv="X-UA-Compatible">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="viewport"
+    content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <meta name="description" content="PakeAja - Smart Wardrobe & AI Stylist">
   <meta name="theme-color" content="#C4202F">
+  <meta name="google-signin-client_id"
+    content="548065215093-spitrtn3ioqktdcg9vsfd28ecj527um9.apps.googleusercontent.com" />
 
   <!-- Preconnect ke CDN Firebase agar inisialisasi super cepat di Chrome iPhone 13 & mobile -->
   <link rel="preconnect" href="https://www.gstatic.com" crossorigin>
@@ -22,7 +26,7 @@
   <link rel="apple-touch-icon" href="icons/Icon-192.png">
 
   <!-- Favicon -->
-  <link rel="icon" type="image/png" href="favicon.png"/>
+  <link rel="icon" type="image/png" href="favicon.png" />
 
   <title>PakeAja</title>
   <link rel="manifest" href="manifest.json">
@@ -41,29 +45,29 @@
     // Polyfill proteksi WebKit iOS (Safari & Chrome iOS) untuk FlutterFire web_utils:
     // Mencegah crash "Null check operator used on a null value" ketika browser melempar
     // DOMException / TypeError / Network Error yang tidak memiliki properti .code bertipe String.
-    (function() {
+    (function () {
       function patchErrorCode(proto) {
         if (!proto) return;
         try {
           var origDesc = Object.getOwnPropertyDescriptor(proto, 'code');
           Object.defineProperty(proto, 'code', {
-            get: function() {
+            get: function () {
               if (typeof this._customCode === 'string') return this._customCode;
               if (origDesc && origDesc.get) {
                 try {
                   var v = origDesc.get.call(this);
                   if (typeof v === 'string' && v.length > 0) return v;
-                } catch(_) {}
+                } catch (_) { }
               }
               return 'auth/network-request-failed';
             },
-            set: function(v) {
+            set: function (v) {
               this._customCode = v;
             },
             configurable: true,
             enumerable: true
           });
-        } catch (_) {}
+        } catch (_) { }
       }
 
       if (typeof DOMException !== 'undefined') patchErrorCode(DOMException.prototype);
@@ -78,7 +82,9 @@
       box-sizing: border-box;
       -webkit-tap-highlight-color: transparent;
     }
-    html, body {
+
+    html,
+    body {
       margin: 0;
       padding: 0;
       width: 100%;
@@ -87,6 +93,7 @@
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
       overflow: hidden;
     }
+
     #pakeaja-loader {
       position: fixed;
       top: 0;
@@ -101,6 +108,7 @@
       z-index: 9999;
       transition: opacity 0.3s ease-out;
     }
+
     .logo-badge {
       width: 76px;
       height: 76px;
@@ -113,11 +121,13 @@
       margin-bottom: 16px;
       animation: float 2.4s ease-in-out infinite;
     }
+
     .logo-icon {
       font-size: 34px;
       color: white;
       line-height: 1;
     }
+
     .app-title {
       font-size: 24px;
       font-weight: 800;
@@ -125,11 +135,13 @@
       margin: 0 0 4px 0;
       letter-spacing: -0.5px;
     }
+
     .app-subtitle {
       font-size: 13px;
       color: #757575;
       margin: 0 0 24px 0;
     }
+
     .spinner {
       width: 28px;
       height: 28px;
@@ -138,13 +150,25 @@
       border-radius: 50%;
       animation: spin 0.8s linear infinite;
     }
+
     @keyframes spin {
-      to { transform: rotate(360deg); }
+      to {
+        transform: rotate(360deg);
+      }
     }
+
     @keyframes float {
-      0%, 100% { transform: translateY(0); }
-      50% { transform: translateY(-6px); }
+
+      0%,
+      100% {
+        transform: translateY(0);
+      }
+
+      50% {
+        transform: translateY(-6px);
+      }
     }
+
     #fallback-hint {
       display: none;
       margin-top: 20px;
@@ -153,6 +177,7 @@
       text-align: center;
       max-width: 280px;
     }
+
     #reload-btn {
       display: none;
       margin-top: 10px;
@@ -167,6 +192,7 @@
     }
   </style>
 </head>
+
 <body>
   <div id="pakeaja-loader">
     <div class="logo-badge">
@@ -181,7 +207,7 @@
 
   <script>
     // Munculkan opsi muat ulang jika jaringan lambat / stuck di browser
-    setTimeout(function() {
+    setTimeout(function () {
       var hint = document.getElementById('fallback-hint');
       var btn = document.getElementById('reload-btn');
       if (hint && btn && document.getElementById('pakeaja-loader')) {
@@ -191,15 +217,16 @@
     }, 8000);
 
     // Hapus loader saat Flutter selesai merender frame pertama
-    window.addEventListener('flutter-first-frame', function() {
+    window.addEventListener('flutter-first-frame', function () {
       var loader = document.getElementById('pakeaja-loader');
       if (loader) {
         loader.style.opacity = '0';
-        setTimeout(function() { loader.remove(); }, 300);
+        setTimeout(function () { loader.remove(); }, 300);
       }
     });
   </script>
 
   <script src="flutter_bootstrap.js" async></script>
 </body>
+
 </html>
