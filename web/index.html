@@ -42,28 +42,34 @@
     // Mencegah crash "Null check operator used on a null value" ketika browser melempar
     // DOMException / TypeError / Network Error yang tidak memiliki properti .code bertipe String.
     (function() {
-      function ensureCode(proto) {
+      function patchErrorCode(proto) {
         if (!proto) return;
         try {
-          var desc = Object.getOwnPropertyDescriptor(proto, 'code');
-          if (!desc || desc.configurable) {
-            Object.defineProperty(proto, 'code', {
-              get: function() {
-                return (typeof this._customCode === 'string') ? this._customCode : 'auth/network-request-failed';
-              },
-              set: function(v) {
-                this._customCode = v;
-              },
-              configurable: true,
-              enumerable: true
-            });
-          }
+          var origDesc = Object.getOwnPropertyDescriptor(proto, 'code');
+          Object.defineProperty(proto, 'code', {
+            get: function() {
+              if (typeof this._customCode === 'string') return this._customCode;
+              if (origDesc && origDesc.get) {
+                try {
+                  var v = origDesc.get.call(this);
+                  if (typeof v === 'string' && v.length > 0) return v;
+                } catch(_) {}
+              }
+              return 'auth/network-request-failed';
+            },
+            set: function(v) {
+              this._customCode = v;
+            },
+            configurable: true,
+            enumerable: true
+          });
         } catch (_) {}
       }
 
-      if (typeof Error !== 'undefined') ensureCode(Error.prototype);
-      if (typeof TypeError !== 'undefined') ensureCode(TypeError.prototype);
-      if (typeof DOMException !== 'undefined') ensureCode(DOMException.prototype);
+      if (typeof DOMException !== 'undefined') patchErrorCode(DOMException.prototype);
+      if (typeof Error !== 'undefined') patchErrorCode(Error.prototype);
+      if (typeof TypeError !== 'undefined') patchErrorCode(TypeError.prototype);
+      if (typeof RangeError !== 'undefined') patchErrorCode(RangeError.prototype);
     })();
   </script>
 

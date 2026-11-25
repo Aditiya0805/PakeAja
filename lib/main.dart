@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -51,10 +52,25 @@ Future<void> main() async {
     // Khusus untuk platform Web (kIsWeb)
     if (kIsWeb) {
       // a. Atur Firestore settings untuk kestabilan koneksi WebKit iOS
-      FirebaseFirestore.instance.settings = const Settings(
-        persistenceEnabled: false,
-        webExperimentalForceLongPolling: true,
-      );
+      try {
+        FirebaseFirestore.instance.settings = const Settings(
+          persistenceEnabled: false,
+          webExperimentalForceLongPolling: true,
+        );
+      } catch (_) {}
+
+      // b. Inisialisasi Auth Persistence aman untuk browser WebKit iOS (Safari & Chrome iOS)
+      try {
+        await FirebaseAuth.instance.setPersistence(Persistence.LOCAL);
+      } catch (_) {
+        try {
+          await FirebaseAuth.instance.setPersistence(Persistence.SESSION);
+        } catch (_) {
+          try {
+            await FirebaseAuth.instance.setPersistence(Persistence.NONE);
+          } catch (_) {}
+        }
+      }
     }
   } catch (e) {
     debugPrint('Firebase init error: $e');

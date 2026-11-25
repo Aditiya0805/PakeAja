@@ -37,7 +37,7 @@ class ErrorHandler {
 
     // Tangani kemungkinan error storage/interop WebKit di browser
     if (msg.contains('Null check operator') || msg.contains('_NullCheck')) {
-      return 'Koneksi ke server autentikasi terganggu. Silakan periksa jaringan dan coba lagi.';
+      return 'Gagal terhubung ke akun. Silakan coba masuk kembali.';
     }
 
     if (msg.startsWith('Exception: ')) {

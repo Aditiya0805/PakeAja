@@ -43,6 +43,19 @@ class AuthService {
         debugPrint('AuthService lazy init Firebase info: $e');
       }
     }
+    if (kIsWeb) {
+      try {
+        await _auth.setPersistence(Persistence.LOCAL);
+      } catch (_) {
+        try {
+          await _auth.setPersistence(Persistence.SESSION);
+        } catch (_) {
+          try {
+            await _auth.setPersistence(Persistence.NONE);
+          } catch (_) {}
+        }
+      }
+    }
   }
 
   FirebaseAuth get _auth {
@@ -133,9 +146,11 @@ class AuthService {
                 'Proses pendaftaran melebihi batas waktu (timeout). Silakan periksa koneksi internet Anda.',
               ),
             );
-        user = credential.user;
+        user = credential.user ?? _auth.currentUser;
       } catch (e) {
-        if (kIsWeb) {
+        if (_auth.currentUser != null) {
+          user = _auth.currentUser;
+        } else if (kIsWeb) {
           try {
             await _auth.setPersistence(Persistence.NONE);
             final credential = await _auth
@@ -144,10 +159,18 @@ class AuthService {
                   password: password,
                 )
                 .timeout(const Duration(seconds: 15));
-            user = credential.user;
-          } catch (_) {}
+            user = credential.user ?? _auth.currentUser;
+          } catch (_) {
+            user = _auth.currentUser;
+          }
         }
-        if (user == null) rethrow;
+        if (user == null && _auth.currentUser != null) {
+          user = _auth.currentUser;
+        }
+        if (user == null) {
+          final errMsg = ErrorHandler.handle(e);
+          return AuthResult.fail(errMsg);
+        }
       }
 
       if (user == null) {
@@ -268,16 +291,18 @@ class AuthService {
                 'Proses masuk melebihi batas waktu (timeout). Silakan periksa koneksi internet Anda.',
               ),
             );
-        user = credential.user;
+        user = credential.user ?? _auth.currentUser;
       } catch (e) {
-        if (kIsWeb) {
+        if (_auth.currentUser != null) {
+          user = _auth.currentUser;
+        } else if (kIsWeb) {
           // Jika gagal di WebKit iOS, cek kredensial langsung via REST API Firebase
           final restCheck = await _verifyViaRestApi(cleanEmail, password);
           if (!restCheck.success) {
             // Jika akun memang salah password/tidak ada, laporkan error spesifiknya
             return restCheck;
           }
-          // Kredensial valid! Coba login ulang dengan Persistence.NONE (in-memory)
+          // Kredensial valid! Coba login ulang dengan Persistence.NONE (in-memory murni)
           try {
             await _auth.setPersistence(Persistence.NONE);
             final credential = await _auth
@@ -286,10 +311,18 @@ class AuthService {
                   password: password,
                 )
                 .timeout(const Duration(seconds: 15));
-            user = credential.user;
-          } catch (_) {}
+            user = credential.user ?? _auth.currentUser;
+          } catch (_) {
+            user = _auth.currentUser;
+          }
         }
-        if (user == null) rethrow;
+        if (user == null && _auth.currentUser != null) {
+          user = _auth.currentUser;
+        }
+        if (user == null) {
+          final errMsg = ErrorHandler.handle(e);
+          return AuthResult.fail(errMsg);
+        }
       }
 
       if (user == null) {
