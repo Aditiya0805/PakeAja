@@ -8,7 +8,6 @@ import 'package:pakeaja/features/auth/presentation/screens/splash_screen.dart';
 import 'package:pakeaja/features/auth/presentation/screens/login_screen.dart';
 import 'package:pakeaja/features/auth/presentation/screens/register_screen.dart';
 import 'package:pakeaja/features/auth/presentation/screens/forgot_password_screen.dart';
-import 'package:pakeaja/features/auth/providers/auth_provider.dart';
 import 'package:pakeaja/core/providers/service_providers.dart';
 import 'package:pakeaja/features/main/presentation/screens/main_screen.dart';
 import 'package:pakeaja/features/wardrobe/presentation/screens/cloth_detail_screen.dart';
@@ -46,8 +45,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       // Beri izin splash screen berjalan tanpa interupsi
       if (loc == '/splash') return null;
 
-      final user =
-          ref.read(authStateProvider).valueOrNull ?? authService.currentUser;
+      final user = authService.currentUser;
       final isLoggedIn = user != null;
       final isAuthRoute = loc == '/login' ||
           loc == '/register' ||

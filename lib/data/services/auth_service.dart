@@ -519,12 +519,15 @@ class AuthService {
               .timeout(const Duration(seconds: 5));
         } catch (_) {}
       }
-      await _auth.signOut().timeout(const Duration(seconds: 6));
+      try {
+        await _auth.signOut().timeout(const Duration(seconds: 6));
+      } catch (e) {
+        debugPrint('Logout non-fatal signOut error: $e');
+      }
       return AuthResult.ok(null);
-    } on Exception catch (e) {
-      return AuthResult.fail(ErrorHandler.handle(e));
     } catch (e) {
-      return AuthResult.fail('Gagal logout: $e');
+      debugPrint('Logout fallback non-fatal: $e');
+      return AuthResult.ok(null);
     }
   }
 

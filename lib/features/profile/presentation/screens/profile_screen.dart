@@ -1,6 +1,7 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import 'package:pakeaja/core/constants/app_constants.dart';
 import 'package:pakeaja/core/theme/app_theme.dart';
@@ -543,6 +544,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
     if (confirmed == true) {
       await ref.read(authControllerProvider.notifier).logout();
+      if (mounted) {
+        context.go('/login');
+      }
     }
   }
 
@@ -593,7 +597,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           .read(authControllerProvider.notifier)
           .deleteAccount(passwordController.text);
 
-      if (!success && mounted) {
+      if (success && mounted) {
+        context.go('/login');
+      } else if (!success && mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Gagal menghapus akun. Cek password kamu.'),

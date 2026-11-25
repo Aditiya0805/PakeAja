@@ -238,11 +238,17 @@ class AuthController extends AsyncNotifier<void> {
   }
 
   Future<bool> logout() async {
-    final result = await _auth.logout();
-    if (result.success) {
-      ref.read(sessionUserNameProvider.notifier).state = null;
+    try {
+      await _auth.logout();
+    } catch (e) {
+      debugPrint('Logout non-fatal: $e');
     }
-    return result.success;
+    try {
+      ref.read(sessionUserNameProvider.notifier).state = null;
+      ref.invalidate(authStateProvider);
+      ref.invalidate(userDataProvider);
+    } catch (_) {}
+    return true;
   }
 
   Future<bool> deleteAccount(String password) async {
