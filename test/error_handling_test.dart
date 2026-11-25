@@ -52,7 +52,7 @@ FIREBASE_WEB_AUTH_DOMAIN=pakeaja.firebaseapp.com
       DefaultFirebaseOptions.web.appId,
       isNot(contains('000000000000000000000000')),
     );
-    expect(DefaultFirebaseOptions.web.authDomain, 'pakeaja.firebaseapp.com');
+    expect(DefaultFirebaseOptions.web.authDomain, 'pakeaja.vercel.app');
   });
 }
 

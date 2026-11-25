@@ -113,7 +113,7 @@ class DefaultFirebaseOptions {
         ),
         authDomain: _envOrFallback(
           'FIREBASE_WEB_AUTH_DOMAIN',
-          'pakeaja.firebaseapp.com',
+          'pakeaja.vercel.app',
         ),
         storageBucket: _envOrFallback(
           'FIREBASE_STORAGE_BUCKET',

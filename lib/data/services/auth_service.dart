@@ -379,16 +379,18 @@ class AuthService {
 
   // ==================== GOOGLE SIGN-IN ====================
   Future<AuthResult> signInWithGoogle({String? name}) async {
-    await _ensureInitialized();
     User? user;
     try {
       UserCredential userCredential;
 
       if (kIsWeb) {
+        // Panggilan langsung saat tombol diklik, tanpa `await` sebelumnya,
+        // menggunakan FirebaseAuth.instance.signInWithPopup agar tidak
+        // diblokir popup blocker atau WebKit ITP (Safari/Chrome iPhone).
         final GoogleAuthProvider googleProvider = GoogleAuthProvider();
         googleProvider.addScope('email');
         googleProvider.addScope('profile');
-        userCredential = await _auth
+        userCredential = await FirebaseAuth.instance
             .signInWithPopup(googleProvider)
             .timeout(
               const Duration(seconds: 60),
@@ -397,6 +399,7 @@ class AuthService {
               ),
             );
       } else {
+        await _ensureInitialized();
         final GoogleSignInAccount? googleUser =
             await _getGoogleSignIn().signIn().timeout(
                   const Duration(seconds: 60),
