@@ -74,7 +74,11 @@ class ErrorHandler {
       case 'too-many-requests':
         return 'Terlalu banyak percobaan. Coba beberapa saat lagi.';
       case 'operation-not-allowed':
-        return 'Metode login tidak diizinkan di Firebase Console.';
+        return 'Metode login Google belum diaktifkan di Firebase Console (Sign-in provider Google belum aktif).';
+      case 'unauthorized-domain':
+        return 'Domain website ini belum ditambahkan ke Authorized Domains di Firebase Console.';
+      case 'popup-blocked':
+        return 'Jendela pop-up login Google diblokir oleh browser. Izinkan pop-up untuk melanjutkan.';
       case 'requires-recent-login':
         return 'Silakan login kembali untuk melanjutkan.';
       case 'credential-already-in-use':
