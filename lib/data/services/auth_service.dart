@@ -1,10 +1,12 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/foundation.dart';
 import 'package:google_sign_in/google_sign_in.dart';
+import 'package:http/http.dart' as http;
 
 import '../../../core/utils/auth_result.dart';
 import '../../../core/utils/error_handler.dart';
@@ -189,6 +191,59 @@ class AuthService {
     return AuthResult.ok(user);
   }
 
+  // ==================== REST API FALLBACK (WEB) ====================
+  Future<AuthResult> _verifyViaRestApi(String email, String password) async {
+    try {
+      final apiKey = DefaultFirebaseOptions.web.apiKey;
+      final uri = Uri.parse(
+        'https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=$apiKey',
+      );
+      final client = http.Client();
+      try {
+        final response = await client
+            .post(
+              uri,
+              headers: {'Content-Type': 'application/json'},
+              body: jsonEncode({
+                'email': email.trim(),
+                'password': password,
+                'returnSecureToken': true,
+              }),
+            )
+            .timeout(const Duration(seconds: 12));
+
+        if (response.statusCode == 200) {
+          return AuthResult.ok(null);
+        } else {
+          final dynamic body = jsonDecode(response.body);
+          if (body is Map<String, dynamic>) {
+            final error = body['error'];
+            if (error is Map<String, dynamic>) {
+              final errorMsg = error['message'] as String? ?? '';
+              if (errorMsg.contains('INVALID_LOGIN_CREDENTIALS') ||
+                  errorMsg.contains('INVALID_PASSWORD')) {
+                return AuthResult.fail(
+                    'Email atau password salah. Silakan periksa kembali.');
+              } else if (errorMsg.contains('EMAIL_NOT_FOUND')) {
+                return AuthResult.fail('Akun tidak ditemukan. Cek email kamu.');
+              } else if (errorMsg.contains('USER_DISABLED')) {
+                return AuthResult.fail('Akun kamu telah dinonaktifkan.');
+              } else if (errorMsg.contains('TOO_MANY_ATTEMPTS_TRY_LATER')) {
+                return AuthResult.fail(
+                    'Terlalu banyak percobaan. Coba beberapa saat lagi.');
+              }
+            }
+          }
+        }
+      } finally {
+        client.close();
+      }
+    } catch (e) {
+      debugPrint('REST API verify error: $e');
+    }
+    return AuthResult.fail('Gagal masuk.');
+  }
+
   // ==================== LOGIN ====================
   Future<AuthResult> login({
     required String email,
@@ -197,11 +252,14 @@ class AuthService {
   }) async {
     await _ensureInitialized();
     User? user;
+    final cleanEmail = email.trim();
+    final trimmedName = name?.trim() ?? '';
+
     try {
       try {
         final credential = await _auth
             .signInWithEmailAndPassword(
-              email: email.trim(),
+              email: cleanEmail,
               password: password,
             )
             .timeout(
@@ -213,11 +271,18 @@ class AuthService {
         user = credential.user;
       } catch (e) {
         if (kIsWeb) {
+          // Jika gagal di WebKit iOS, cek kredensial langsung via REST API Firebase
+          final restCheck = await _verifyViaRestApi(cleanEmail, password);
+          if (!restCheck.success) {
+            // Jika akun memang salah password/tidak ada, laporkan error spesifiknya
+            return restCheck;
+          }
+          // Kredensial valid! Coba login ulang dengan Persistence.NONE (in-memory)
           try {
             await _auth.setPersistence(Persistence.NONE);
             final credential = await _auth
                 .signInWithEmailAndPassword(
-                  email: email.trim(),
+                  email: cleanEmail,
                   password: password,
                 )
                 .timeout(const Duration(seconds: 15));
@@ -240,36 +305,40 @@ class AuthService {
       return AuthResult.fail(ErrorHandler.handle(e));
     }
 
-    // === TAHAP 2: PROFIL & FIRESTORE TERISOLASI (TIDAK MEMBATALKAN HASIL LOGIN) ===
-    if (name != null && name.trim().isNotEmpty) {
-      final trimmed = name.trim();
-      if ((user.displayName ?? '') != trimmed) {
-        try {
-          await user
-              .updateDisplayName(trimmed)
-              .timeout(const Duration(seconds: 4));
-          await user.reload().timeout(const Duration(seconds: 4));
-        } catch (_) {}
-      }
-      try {
-        final userDoc = _firestore.collection('users').doc(user.uid);
-        final snap = await userDoc.get().timeout(const Duration(seconds: 6));
-        if (snap.exists) {
-          await userDoc.update({
-            'name': trimmed,
-            'updatedAt': FieldValue.serverTimestamp(),
-          }).timeout(const Duration(seconds: 6));
-        } else {
-          await userDoc.set({
-            'name': trimmed,
-            'email': user.email ?? email.trim(),
-            'photoUrl': user.photoURL,
-            'createdAt': FieldValue.serverTimestamp(),
-          }).timeout(const Duration(seconds: 6));
+    // === TAHAP 2: PROFIL & FIRESTORE TERISOLASI SECARA TOTAL ===
+    try {
+      final currentUser = user;
+      if (trimmedName.isNotEmpty) {
+        if ((currentUser.displayName ?? '') != trimmedName) {
+          try {
+            await currentUser
+                .updateDisplayName(trimmedName)
+                .timeout(const Duration(seconds: 4));
+            await currentUser.reload().timeout(const Duration(seconds: 4));
+          } catch (_) {}
         }
-      } catch (e) {
-        debugPrint('Sinkronisasi Firestore saat login tertunda: $e');
+        try {
+          final userDoc = _firestore.collection('users').doc(currentUser.uid);
+          final snap = await userDoc.get().timeout(const Duration(seconds: 6));
+          if (snap.exists) {
+            await userDoc.update({
+              'name': trimmedName,
+              'updatedAt': FieldValue.serverTimestamp(),
+            }).timeout(const Duration(seconds: 6));
+          } else {
+            await userDoc.set({
+              'name': trimmedName,
+              'email': currentUser.email ?? cleanEmail,
+              'photoUrl': currentUser.photoURL,
+              'createdAt': FieldValue.serverTimestamp(),
+            }).timeout(const Duration(seconds: 6));
+          }
+        } catch (e) {
+          debugPrint('Sinkronisasi Firestore saat login tertunda: $e');
+        }
       }
+    } catch (e) {
+      debugPrint('Tahap 2 non-fatal: $e');
     }
 
     return AuthResult.ok(user);

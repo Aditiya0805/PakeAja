@@ -37,6 +37,34 @@
       messagingSenderId: "548065215093",
       appId: "1:548065215093:web:a6471475a6691238106e3c"
     };
+
+    // Polyfill proteksi WebKit iOS (Safari & Chrome iOS) untuk FlutterFire web_utils:
+    // Mencegah crash "Null check operator used on a null value" ketika browser melempar
+    // DOMException / TypeError / Network Error yang tidak memiliki properti .code bertipe String.
+    (function() {
+      function ensureCode(proto) {
+        if (!proto) return;
+        try {
+          var desc = Object.getOwnPropertyDescriptor(proto, 'code');
+          if (!desc || desc.configurable) {
+            Object.defineProperty(proto, 'code', {
+              get: function() {
+                return (typeof this._customCode === 'string') ? this._customCode : 'auth/network-request-failed';
+              },
+              set: function(v) {
+                this._customCode = v;
+              },
+              configurable: true,
+              enumerable: true
+            });
+          }
+        } catch (_) {}
+      }
+
+      if (typeof Error !== 'undefined') ensureCode(Error.prototype);
+      if (typeof TypeError !== 'undefined') ensureCode(TypeError.prototype);
+      if (typeof DOMException !== 'undefined') ensureCode(DOMException.prototype);
+    })();
   </script>
 
   <style>
